@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package acore.proxy.vless.outbound;
+option csharp_namespace = "Acore.Proxy.Vless.Outbound";
+option go_package = "github.com/ImAubrey/acore/proxy/vless/outbound";
+option java_package = "com.acore.proxy.vless.outbound";
+option java_multiple_files = true;
+
+import "common/protocol/server_spec.proto";
+
+message Config {
+  acore.common.protocol.ServerEndpoint vnext = 1;
+}

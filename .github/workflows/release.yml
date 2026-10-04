@@ -1,5 +1,8 @@
 name: Build and Release
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
@@ -97,9 +100,21 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
       GOARM: ${{ matrix.goarm }}
       CGO_ENABLED: 0
+      GOPRIVATE: github.com/ImAubrey/acore
+      GONOSUMDB: github.com/ImAubrey/acore
     steps:
       - name: Checkout codebase
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+      - name: Configure private Go module access
+        shell: bash
+        env:
+          ACORE_REPO_TOKEN: ${{ secrets.ACORE_REPO_TOKEN }}
+        run: |
+          if [ -z "${ACORE_REPO_TOKEN}" ]; then
+            echo "::error::ACORE_REPO_TOKEN is required to download github.com/ImAubrey/acore"
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${ACORE_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
       - name: Show workflow information
         id: get_filename
         run: |
@@ -109,28 +124,28 @@ jobs:
           echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
-          go-version: ^1.20
+          go-version-file: go.mod
 
       - name: Get project dependencies
         run: go mod download
 
 
-      - name: Build XrayR
+      - name: Build acore-backend
         run: |
           mkdir -p build_assets
-          go build -v -o build_assets/XrayR -trimpath -ldflags "-s -w -buildid="
+          go build -v -o build_assets/acore-backend -trimpath -ldflags "-s -w -buildid="
 
-      - name: Build Mips softfloat XrayR
+      - name: Build Mips softfloat acore-backend
         if: matrix.goarch == 'mips' || matrix.goarch == 'mipsle'
         run: |
-          GOMIPS=softfloat go build -v -o build_assets/XrayR_softfloat -trimpath -ldflags "-s -w -buildid="
-      - name: Rename Windows XrayR
+          GOMIPS=softfloat go build -v -o build_assets/acore-backend_softfloat -trimpath -ldflags "-s -w -buildid="
+      - name: Rename Windows acore-backend
         if: matrix.goos == 'windows'
         run: |
           cd ./build_assets || exit 1
-          mv XrayR XrayR.exe
+          mv acore-backend acore-backend.exe
 
       - name: Prepare to release
         uses: nick-fields/retry@v2
@@ -164,9 +179,9 @@ jobs:
         run: |
           pushd build_assets || exit 1
           touch -mt $(date +%Y01010000) *
-          zip -9vr ../XrayR-$ASSET_NAME.zip .
+          zip -9vr ../acore-backend-$ASSET_NAME.zip .
           popd || exit 1
-          FILE=./XrayR-$ASSET_NAME.zip
+          FILE=./acore-backend-$ASSET_NAME.zip
           DGST=$FILE.dgst
           for METHOD in {"md5","sha1","sha256","sha512"}
           do
@@ -174,18 +189,18 @@ jobs:
           done
       - name: Change the name
         run: |
-          mv build_assets XrayR-$ASSET_NAME
+          mv build_assets acore-backend-$ASSET_NAME
       - name: Upload files to Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: XrayR-${{ steps.get_filename.outputs.ASSET_NAME }}
+          name: acore-backend-${{ steps.get_filename.outputs.ASSET_NAME }}
           path: |
-            ./XrayR-${{ steps.get_filename.outputs.ASSET_NAME }}/*
+            ./acore-backend-${{ steps.get_filename.outputs.ASSET_NAME }}/*
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         if: github.event_name == 'release'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./XrayR-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
+          file: ./acore-backend-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
           tag: ${{ github.ref }}
           file_glob: true

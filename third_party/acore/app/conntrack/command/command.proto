@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package acore.app.conntrack.command;
+option csharp_namespace = "Acore.App.Conntrack.Command";
+option go_package = "github.com/ImAubrey/acore/app/conntrack/command";
+option java_package = "com.acore.app.conntrack.command";
+option java_multiple_files = true;
+
+message GetConnectionsRequest {
+  // Return per-connection records instead of grouping by 5-tuple.
+  bool per_connection = 1;
+}
+
+message Connection {
+  uint32 id = 1;
+  string network = 2;
+  string source_ip = 3;
+  uint32 source_port = 4;
+  string destination_ip = 5;
+  uint32 destination_port = 6;
+  string destination_domain = 7;
+  string inbound_tag = 8;
+  string outbound_tag = 9;
+  string user = 10;
+  string protocol = 11;
+  string route_tag = 12;
+  int64 upload = 13;
+  int64 download = 14;
+  int64 start_time = 15;
+  int64 last_activity = 16;
+  uint32 connections = 17;
+  repeated uint32 ids = 18;
+}
+
+message GetConnectionsResponse {
+  int64 upload_total = 1;
+  int64 download_total = 2;
+  repeated Connection connections = 3;
+}
+
+service ConnectionService {
+  rpc GetConnections(GetConnectionsRequest) returns (GetConnectionsResponse) {}
+}
+
+message Config {}

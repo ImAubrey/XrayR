@@ -6,19 +6,18 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ImAubrey/acore/common/protocol"
+	"github.com/ImAubrey/acore/common/task"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/features/inbound"
+	"github.com/ImAubrey/acore/features/outbound"
+	"github.com/ImAubrey/acore/features/routing"
+	"github.com/ImAubrey/acore/features/stats"
 	log "github.com/sirupsen/logrus"
-	"github.com/xtls/xray-core/common/protocol"
-	"github.com/xtls/xray-core/common/task"
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/features/inbound"
-	"github.com/xtls/xray-core/features/outbound"
-	"github.com/xtls/xray-core/features/routing"
-	"github.com/xtls/xray-core/features/stats"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/app/mydispatcher"
-	"github.com/XrayR-project/XrayR/common/mylego"
-	"github.com/XrayR-project/XrayR/common/serverstatus"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/app/mydispatcher"
+	"github.com/ImAubrey/acore-backend/common/serverstatus"
 )
 
 type LimitInfo struct {
@@ -54,22 +53,31 @@ type periodicTask struct {
 
 // New return a Controller service with default parameters.
 func New(server *core.Instance, api api.API, config *Config, panelType string) *Controller {
+	if config == nil {
+		config = &Config{}
+	}
+	config.normalize()
+
 	logger := log.NewEntry(log.StandardLogger()).WithFields(log.Fields{
 		"Host": api.Describe().APIHost,
 		"Type": api.Describe().NodeType,
 		"ID":   api.Describe().NodeID,
 	})
 	controller := &Controller{
-		server:     server,
-		config:     config,
-		apiClient:  api,
-		panelType:  panelType,
-		ibm:        server.GetFeature(inbound.ManagerType()).(inbound.Manager),
-		obm:        server.GetFeature(outbound.ManagerType()).(outbound.Manager),
-		stm:        server.GetFeature(stats.ManagerType()).(stats.Manager),
-		dispatcher: server.GetFeature(routing.DispatcherType()).(*mydispatcher.DefaultDispatcher),
-		startAt:    time.Now(),
-		logger:     logger,
+		server:    server,
+		config:    config,
+		apiClient: api,
+		panelType: panelType,
+		ibm:       server.GetFeature(inbound.ManagerType()).(inbound.Manager),
+		obm:       server.GetFeature(outbound.ManagerType()).(outbound.Manager),
+		stm:       server.GetFeature(stats.ManagerType()).(stats.Manager),
+		startAt:   time.Now(),
+		logger:    logger,
+	}
+	if dispatcher, ok := server.GetFeature(routing.DispatcherType()).(*mydispatcher.DefaultDispatcher); ok {
+		controller.dispatcher = dispatcher
+	} else {
+		logger.Warn("acore-backend mydispatcher is not loaded; limiter and audit rule extensions are disabled")
 	}
 
 	return controller
@@ -149,16 +157,6 @@ func (c *Controller) Start() error {
 				Execute:  c.userInfoMonitor,
 			}},
 	)
-
-	// Check cert service in need
-	if c.nodeInfo.EnableTLS && c.config.EnableREALITY == false {
-		c.tasks = append(c.tasks, periodicTask{
-			tag: "cert monitor",
-			Periodic: &task.Periodic{
-				Interval: time.Duration(c.config.UpdatePeriodic) * time.Second * 60,
-				Execute:  c.certMonitor,
-			}})
-	}
 
 	// Start periodic tasks
 	for i := range c.tasks {
@@ -404,19 +402,21 @@ func (c *Controller) addInboundForSSPlugin(newNodeInfo api.NodeInfo) (err error)
 
 func (c *Controller) addNewUser(userInfo *[]api.UserInfo, nodeInfo *api.NodeInfo) (err error) {
 	users := make([]*protocol.User, 0)
-	switch nodeInfo.NodeType {
-	case "V2ray", "Vmess", "Vless":
-		if nodeInfo.EnableVless || (nodeInfo.NodeType == "Vless" && nodeInfo.NodeType != "Vmess") {
+	switch api.CanonicalNodeType(nodeInfo.NodeType, nodeInfo.EnableVless) {
+	case "v2ray", "vmess", "vless":
+		if api.IsVlessNodeType(nodeInfo.NodeType, nodeInfo.EnableVless) {
 			users = c.buildVlessUser(userInfo)
 		} else {
 			users = c.buildVmessUser(userInfo)
 		}
-	case "Trojan":
+	case "trojan":
 		users = c.buildTrojanUser(userInfo)
-	case "Shadowsocks":
+	case "shadowsocks":
 		users = c.buildSSUser(userInfo, nodeInfo.CypherMethod)
-	case "Shadowsocks-Plugin":
+	case "shadowsocks-plugin":
 		users = c.buildSSPluginUser(userInfo)
+	case api.NodeTypeHY2:
+		users = c.buildHysteriaUser(userInfo)
 	default:
 		return fmt.Errorf("unsupported node type: %s", nodeInfo.NodeType)
 	}
@@ -614,22 +614,3 @@ func (c *Controller) buildNodeTag() string {
 // func (c *Controller) logPrefix() string {
 // 	return fmt.Sprintf("[%s] %s(ID=%d)", c.clientInfo.APIHost, c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 // }
-
-// Check Cert
-func (c *Controller) certMonitor() error {
-	if c.nodeInfo.EnableTLS && c.config.EnableREALITY == false {
-		switch c.config.CertConfig.CertMode {
-		case "dns", "http", "tls":
-			lego, err := mylego.New(c.config.CertConfig)
-			if err != nil {
-				c.logger.Print(err)
-			}
-			// Xray-core supports the OcspStapling certification hot renew
-			_, _, _, err = lego.RenewCert()
-			if err != nil {
-				c.logger.Print(err)
-			}
-		}
-	}
-	return nil
-}

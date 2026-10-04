@@ -1,15 +1,16 @@
 package controller
 
 import (
-	"github.com/XrayR-project/XrayR/common/limiter"
-	"github.com/XrayR-project/XrayR/common/mylego"
+	"strings"
+
+	"github.com/ImAubrey/acore-backend/common/limiter"
 )
 
 type Config struct {
 	ListenIP                  string                           `mapstructure:"ListenIP"`
 	SendIP                    string                           `mapstructure:"SendIP"`
 	UpdatePeriodic            int                              `mapstructure:"UpdatePeriodic"`
-	CertConfig                *mylego.CertConfig               `mapstructure:"CertConfig"`
+	CertConfig                *CertConfig                      `mapstructure:"CertConfig"`
 	EnableDNS                 bool                             `mapstructure:"EnableDNS"`
 	DNSType                   string                           `mapstructure:"DNSType"`
 	DisableUploadTraffic      bool                             `mapstructure:"DisableUploadTraffic"`
@@ -24,6 +25,23 @@ type Config struct {
 	DisableLocalREALITYConfig bool                             `mapstructure:"DisableLocalREALITYConfig"`
 	EnableREALITY             bool                             `mapstructure:"EnableREALITY"`
 	REALITYConfigs            *REALITYConfig                   `mapstructure:"REALITYConfigs"`
+}
+
+type CertConfig struct {
+	CertMode         string `mapstructure:"CertMode"` // none, file, api
+	CertFile         string `mapstructure:"CertFile"`
+	KeyFile          string `mapstructure:"KeyFile"`
+	RejectUnknownSni bool   `mapstructure:"RejectUnknownSni"`
+}
+
+func (c *Config) normalize() {
+	if c.CertConfig == nil {
+		c.CertConfig = &CertConfig{CertMode: "none"}
+	}
+	if c.CertConfig.CertMode == "" {
+		c.CertConfig.CertMode = "none"
+	}
+	c.CertConfig.CertMode = strings.ToLower(strings.TrimSpace(c.CertConfig.CertMode))
 }
 
 type AutoSpeedLimitConfig struct {

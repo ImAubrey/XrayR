@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/api/pmpanel"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/api/pmpanel"
 )
 
 func CreateClient() api.API {
@@ -150,8 +150,8 @@ func TestReportIllegal(t *testing.T) {
 	client := CreateClient()
 
 	detectResult := []api.DetectResult{
-		{1, 2},
-		{1, 3},
+		{UID: 1, RuleID: 2},
+		{UID: 1, RuleID: 3},
 	}
 	client.Debug()
 	err := client.ReportIllegal(&detectResult)

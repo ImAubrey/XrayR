@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package acore.core.app.observatory.command;
+option csharp_namespace = "Acore.Core.App.Observatory.Command";
+option go_package = "github.com/ImAubrey/acore/app/observatory/command";
+option java_package = "com.acore.core.app.observatory.command";
+option java_multiple_files = true;
+
+import "app/observatory/config.proto";
+
+message GetOutboundStatusRequest {
+}
+
+message GetOutboundStatusResponse {
+  acore.core.app.observatory.ObservationResult status = 1;
+}
+
+service ObservatoryService {
+  rpc GetOutboundStatus(GetOutboundStatusRequest)
+      returns (GetOutboundStatusResponse) {}
+}
+
+
+message Config {}

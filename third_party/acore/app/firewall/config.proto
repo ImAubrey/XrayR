@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package acore.app.firewall;
+option csharp_namespace = "Acore.App.Firewall";
+option go_package = "github.com/ImAubrey/acore/app/firewall";
+option java_package = "com.acore.app.firewall";
+option java_multiple_files = true;
+
+import "app/router/config.proto";
+
+message ConnectionLimit {
+  enum Key {
+    SrcIp = 0;
+    DstIp = 1;
+    SrcDstIp = 2;
+    SrcPrefix = 3;
+    DstPrefix = 4;
+  }
+
+  enum Mode {
+    ActiveConnections = 0;
+    NewConnections = 1;
+  }
+
+  Key key = 1;
+  uint32 max_connections = 2;
+  Mode mode = 3;
+  uint32 window_seconds = 4;
+}
+
+message Rule {
+  enum Action {
+    Mark = 0;
+    Allow = 1;
+    Block = 2;
+    Limit = 3;
+  }
+
+  acore.app.router.RoutingRule match = 1;
+  Action action = 2;
+  ConnectionLimit limit = 3;
+}
+
+message Config {
+  reserved 1;
+  repeated Rule rule = 2;
+}

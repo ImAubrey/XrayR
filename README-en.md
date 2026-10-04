@@ -1,25 +1,24 @@
-# XrayR
+# acore-backend
 
-[![](https://img.shields.io/badge/TgChat-@XrayR讨论-blue.svg)](https://t.me/XrayR_project)
-[![](https://img.shields.io/badge/Channel-@XrayR通知-blue.svg)](https://t.me/XrayR_channel)
-![](https://img.shields.io/github/stars/XrayR-project/XrayR)
-![](https://img.shields.io/github/forks/XrayR-project/XrayR)
-![](https://github.com/XrayR-project/XrayR/actions/workflows/release.yml/badge.svg)
-![](https://github.com/XrayR-project/XrayR/actions/workflows/docker.yml/badge.svg)
-[![Github All Releases](https://img.shields.io/github/downloads/XrayR-project/XrayR/total.svg)]()
+[![](https://img.shields.io/badge/TgChat-@acore-backend讨论-blue.svg)](https://t.me/acore_backend_project)
+[![](https://img.shields.io/badge/Channel-@acore-backend通知-blue.svg)](https://t.me/acore_backend_channel)
+![](https://img.shields.io/github/stars/ImAubrey/acore-backend)
+![](https://img.shields.io/github/forks/ImAubrey/acore-backend)
+![](https://github.com/ImAubrey/acore-backend/actions/workflows/release.yml/badge.svg)
+[![Github All Releases](https://img.shields.io/github/downloads/ImAubrey/acore-backend/total.svg)]()
 
-[Iranian(farsi) README](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md), [English(en) README](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)
+[Iranian(farsi) README](https://github.com/ImAubrey/acore-backend/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/ImAubrey/acore-backend/blob/master/README-vi.md), [English(en) README](https://github.com/ImAubrey/acore-backend/blob/master/README-en.md)
 
-A Xray backend framework that can easily support many panels.
+An acore backend framework that can easily support many panels.
 
-A back -end framework based on XRAY supports V2ay, Trojan, Shadowsocks protocols, which are easy to expand and support multi -panel docker.
+A backend framework based on acore supports V2ay, Trojan, and Shadowsocks protocols, is easy to expand, and supports multi-panel integration.
 
 
 If you like this project, you can click STAR+WATCH in the upper right corner to continue to pay attention to the progress of this project.
 
 ## Guide for use
 
-Tutorial：[Detailed tutorial](https://xrayr-project.github.io/XrayR-doc/)
+Tutorial：[Detailed tutorial](https://imaubrey.github.io/acore-backend-doc/)
 
 
 ## Disclaimer
@@ -36,7 +35,7 @@ This project is just my personal learning and development and maintenance. I do 
 * Support node port level and user level speed limit.
 * The configuration is simple and clear.
 * Modify the automatic restart instance.
-* Easy to compile and upgrade, you can quickly update the core version and support the new features of XRAY-CORE.
+* Easy to compile and upgrade, you can quickly update the core version and support the new features of acore.
 
 ## Function
 
@@ -71,20 +70,16 @@ This project is just my personal learning and development and maintenance. I do 
 ### 1-Click installation
 
 ```
-wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/install.sh && bash install.sh
+wget -N https://raw.githubusercontent.com/ImAubrey/acore-backend-release/master/install.sh && bash install.sh
 ```
-
-### Docker
-
-[Docker deployment tutorial](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/docker)
 
 ### Manual installation
 
-[Manual installation tutorial](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/manual)
+[Manual installation tutorial](https://imaubrey.github.io/acore-backend-doc/acore-backend-xia-zai-he-an-zhuang/install/manual)
 
 ## Configuration file and detailed use tutorial
 
-[Detailed tutorial](https://xrayr-project.github.io/XrayR-doc/)
+[Detailed tutorial](https://imaubrey.github.io/acore-backend-doc/)
 
 ## Thanks
 
@@ -95,16 +90,16 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 
 ## Licence
 
-[Mozilla Public License Version 2.0](https://github.com/XrayR-project/XrayR/blob/master/LICENSE)
+[Mozilla Public License Version 2.0](https://github.com/ImAubrey/acore-backend/blob/master/LICENSE)
 
 ## Telgram
 
-[Xrayr back-end discussion](https://t.me/XrayR_project)
+[acore-backend back-end discussion](https://t.me/acore_backend_project)
 
-[Xrayr notification](https://t.me/XrayR_channel)
+[acore-backend notification](https://t.me/acore_backend_channel)
 
 ## Stargazers over time
 
-[![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
+[![Stargazers over time](https://starchart.cc/ImAubrey/acore-backend.svg)](https://starchart.cc/ImAubrey/acore-backend)
 
 

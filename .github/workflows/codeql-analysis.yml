@@ -11,6 +11,11 @@
 #
 name: "CodeQL"
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
 on:
   push:
     branches: [ master ]
@@ -24,6 +29,9 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/ImAubrey/acore
+      GONOSUMDB: github.com/ImAubrey/acore
 
     strategy:
       fail-fast: false
@@ -35,11 +43,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+
+      - name: Configure private Go module access
+        shell: bash
+        env:
+          ACORE_REPO_TOKEN: ${{ secrets.ACORE_REPO_TOKEN }}
+        run: |
+          if [ -z "${ACORE_REPO_TOKEN}" ]; then
+            echo "::error::ACORE_REPO_TOKEN is required to download github.com/ImAubrey/acore"
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${ACORE_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           # If you wish to specify custom queries, you can do so here or in a config file.
@@ -48,13 +67,13 @@ jobs:
           # queries: ./path/to/local/query, your-org/your-repo/queries@main
           
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v4
 
       # ℹ️ Command-line programs to run using the OS shell.
       # 📚 https://git.io/JvXDl
@@ -68,4 +87,4 @@ jobs:
       #   make release
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v4

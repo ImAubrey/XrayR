@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package acore.proxy.blackhole;
+option csharp_namespace = "Acore.Proxy.Blackhole";
+option go_package = "github.com/ImAubrey/acore/proxy/blackhole";
+option java_package = "com.acore.proxy.blackhole";
+option java_multiple_files = true;
+
+import "common/serial/typed_message.proto";
+
+message NoneResponse {}
+
+message HTTPResponse {}
+
+message HTTPCustomResponse {
+  int32 status_code = 1;
+  string redirect_url = 2;
+}
+
+message TLSAlertResponse {
+  int32 alert_code = 1;
+}
+
+message Config {
+  acore.common.serial.TypedMessage response = 1;
+}

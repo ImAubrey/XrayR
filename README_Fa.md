@@ -1,22 +1,21 @@
-# XrayR
+# acore-backend
 
-[![](https://img.shields.io/badge/TgChat-@XrayR讨论-blue.svg)](https://t.me/XrayR_project)
-[![](https://img.shields.io/badge/Channel-@XrayR通知-blue.svg)](https://t.me/XrayR_channel)
-![](https://img.shields.io/github/stars/XrayR-project/XrayR)
-![](https://img.shields.io/github/forks/XrayR-project/XrayR)
-![](https://github.com/XrayR-project/XrayR/actions/workflows/release.yml/badge.svg)
-![](https://github.com/XrayR-project/XrayR/actions/workflows/docker.yml/badge.svg)
-[![Github All Releases](https://img.shields.io/github/downloads/XrayR-project/XrayR/total.svg)]()
+[![](https://img.shields.io/badge/TgChat-@acore-backend讨论-blue.svg)](https://t.me/acore_backend_project)
+[![](https://img.shields.io/badge/Channel-@acore-backend通知-blue.svg)](https://t.me/acore_backend_channel)
+![](https://img.shields.io/github/stars/ImAubrey/acore-backend)
+![](https://img.shields.io/github/forks/ImAubrey/acore-backend)
+![](https://github.com/ImAubrey/acore-backend/actions/workflows/release.yml/badge.svg)
+[![Github All Releases](https://img.shields.io/github/downloads/ImAubrey/acore-backend/total.svg)]()
 
-[Iranian(farsi) README](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md), [English(en) README](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)
+[Iranian(farsi) README](https://github.com/ImAubrey/acore-backend/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/ImAubrey/acore-backend/blob/master/README-vi.md), [English(en) README](https://github.com/ImAubrey/acore-backend/blob/master/README-en.md)
 
-یک فریمورک بک اند مبتنی بر xray که از چند از پنل پشتیبانی می کند
+یک فریمورک بک اند مبتنی بر acore که از چند از پنل پشتیبانی می کند
 
-یک چارچوب بک‌اند مبتنی بر Xray که از پروتکل‌های V2ay، Trojan و Shadowsocks پشتیبانی می‌کند، به راحتی قابل گسترش است و از اتصال چند پنل پشتیبانی می‌کند.
+یک چارچوب بک‌اند مبتنی بر acore که از پروتکل‌های V2ay، Trojan و Shadowsocks پشتیبانی می‌کند، به راحتی قابل گسترش است و از اتصال چند پنل پشتیبانی می‌کند.
 
 اگر این پروژه را دوست دارید، می توانید با کلیک بر روی ستاره+ساعت در گوشه بالا سمت راست به ادامه روند پیشرفت این پروژه توجه کنید.
 
-آموزش：[اموزش با جزئیات](https://xrayr-project.github.io/XrayR-doc/)
+آموزش：[اموزش با جزئیات](https://imaubrey.github.io/acore-backend-doc/)
 
 ## سلب مسئولیت
 
@@ -31,7 +30,7 @@
 * پشتیبانی از سطح پورت گره، محدودیت سرعت سطح کاربر.
 * پیکربندی ساده و سرراست است.
 * پیکربندی را تغییر دهید تا نمونه به طور خودکار راه اندازی مجدد شود.
-* کامپایل و ارتقاء آن آسان است و می تواند به سرعت نسخه اصلی را به روز کند و از ویژگی های جدید Xray-core پشتیبانی می کند.
+* کامپایل و ارتقاء آن آسان است و می تواند به سرعت نسخه اصلی را به روز کند و از ویژگی های جدید acore پشتیبانی می کند.
 
 ## امکانات
 
@@ -66,20 +65,16 @@
 ### نصب بصورت یکپارچه
 
 ```
-wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/install.sh && bash install.sh
+wget -N https://raw.githubusercontent.com/ImAubrey/acore-backend-release/master/install.sh && bash install.sh
 ```
-
-### استقرار نرم افزار با استفاده از Docker
-
-[آموزش استقرار داکر](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/docker)
 
 ### نصب دستی
 
-[آموزش نصب دستی](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/manual)
+[آموزش نصب دستی](https://imaubrey.github.io/acore-backend-doc/acore-backend-xia-zai-he-an-zhuang/install/manual)
 
 ## فایل های پیکربندی و آموزش های با جرئیات
 
-[آموزش مفصل](https://xrayr-project.github.io/XrayR-doc/)
+[آموزش مفصل](https://imaubrey.github.io/acore-backend-doc/)
 
 ## Thanks
 
@@ -90,16 +85,16 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 
 ## Licence
 
-[Mozilla Public License Version 2.0](https://github.com/XrayR-project/XrayR/blob/master/LICENSE)
+[Mozilla Public License Version 2.0](https://github.com/ImAubrey/acore-backend/blob/master/LICENSE)
 
 ## Telgram
 
-[بحث در مورد XrayR Backend](https://t.me/XrayR_project)
+[بحث در مورد acore-backend Backend](https://t.me/acore_backend_project)
 
-[کانال اعلان در مورد XrayR](https://t.me/XrayR_channel)
+[کانال اعلان در مورد acore-backend](https://t.me/acore_backend_channel)
 
 ## Stargazers over time
 
-[![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
+[![Stargazers over time](https://starchart.cc/ImAubrey/acore-backend.svg)](https://starchart.cc/ImAubrey/acore-backend)
 
 

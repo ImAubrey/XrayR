@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 // APIClient create a api client to the panel.
@@ -396,7 +396,7 @@ func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 			SetBody(IllegalReport{
 				RuleID: r.RuleID,
 				UID:    r.UID,
-				Reason: "XrayR cannot save reason",
+				Reason: "acore-backend cannot save reason",
 			}).
 			SetResult(&Response{}).
 			ForceContentType("application/json").

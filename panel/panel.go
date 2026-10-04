@@ -6,26 +6,27 @@ import (
 	"sync"
 
 	"dario.cat/mergo"
+	"github.com/ImAubrey/acore/app/observatory"
+	"github.com/ImAubrey/acore/app/proxyman"
+	"github.com/ImAubrey/acore/app/stats"
+	"github.com/ImAubrey/acore/common/serial"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/infra/conf"
 	"github.com/r3labs/diff/v2"
 	log "github.com/sirupsen/logrus"
-	"github.com/xtls/xray-core/app/proxyman"
-	"github.com/xtls/xray-core/app/stats"
-	"github.com/xtls/xray-core/common/serial"
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/api/bunpanel"
-	"github.com/XrayR-project/XrayR/api/gov2panel"
-	"github.com/XrayR-project/XrayR/api/newV2board"
-	"github.com/XrayR-project/XrayR/api/pmpanel"
-	"github.com/XrayR-project/XrayR/api/proxypanel"
-	"github.com/XrayR-project/XrayR/api/sspanel"
-	"github.com/XrayR-project/XrayR/api/v2raysocks"
-	"github.com/XrayR-project/XrayR/app/mydispatcher"
-	_ "github.com/XrayR-project/XrayR/cmd/distro/all"
-	"github.com/XrayR-project/XrayR/service"
-	"github.com/XrayR-project/XrayR/service/controller"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/api/bunpanel"
+	"github.com/ImAubrey/acore-backend/api/gov2panel"
+	"github.com/ImAubrey/acore-backend/api/newV2board"
+	"github.com/ImAubrey/acore-backend/api/pmpanel"
+	"github.com/ImAubrey/acore-backend/api/proxypanel"
+	"github.com/ImAubrey/acore-backend/api/sspanel"
+	"github.com/ImAubrey/acore-backend/api/v2raysocks"
+	"github.com/ImAubrey/acore-backend/app/mydispatcher"
+	_ "github.com/ImAubrey/acore-backend/cmd/distro/all"
+	"github.com/ImAubrey/acore-backend/service"
+	"github.com/ImAubrey/acore-backend/service/controller"
 )
 
 // Panel Structure
@@ -143,6 +144,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 			serial.ToTypedMessage(&stats.Config{}),
 			serial.ToTypedMessage(&proxyman.InboundConfig{}),
 			serial.ToTypedMessage(&proxyman.OutboundConfig{}),
+			serial.ToTypedMessage(&observatory.Config{}),
 			serial.ToTypedMessage(policyConfig),
 			serial.ToTypedMessage(dnsConfig),
 			serial.ToTypedMessage(routeConfig),

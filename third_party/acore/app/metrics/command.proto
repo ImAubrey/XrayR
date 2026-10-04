@@ -1,0 +1,512 @@
+syntax = "proto3";
+
+package acore.app.metrics;
+option csharp_namespace = "Acore.App.Metrics";
+option go_package = "github.com/ImAubrey/acore/app/metrics";
+option java_package = "com.acore.app.metrics";
+option java_multiple_files = true;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+// GrpcConfig configures the metrics gRPC service.
+message GrpcConfig {
+  // Optional access key for gRPC requests. If empty, no auth is required.
+  string access_key = 1;
+}
+
+message ConnectionsRequest {}
+
+message ConnectionsStreamRequest {
+  // Stream interval in milliseconds. Minimum 200ms.
+  int32 interval_ms = 1;
+}
+
+message ConnectionsResponse {
+  int64 download_total = 1;
+  int64 upload_total = 2;
+  repeated ConnectionGroup connections = 3;
+}
+
+message ConnectionGroup {
+  string id = 1;
+  ConnectionMetadata metadata = 2;
+  int64 upload = 3;
+  int64 download = 4;
+  string start = 5;
+  repeated string chains = 6;
+  string rule = 7;
+  string rule_payload = 8;
+  uint32 connection_count = 9;
+  repeated ConnectionDetail details = 10;
+}
+
+message ConnectionDetail {
+  string id = 1;
+  ConnectionMetadata metadata = 2;
+  int64 upload = 3;
+  int64 download = 4;
+  string start = 5;
+  string last_seen = 6;
+  repeated string chains = 7;
+  string rule = 8;
+  string rule_payload = 9;
+}
+
+message ConnectionMetadata {
+  string network = 1;
+  string type = 2;
+  string source_ip = 3;
+  uint32 source_port = 4;
+  string local_ip = 11;
+  uint32 local_port = 12;
+  string acore_src_ip = 13;
+  uint32 acore_src_port = 14;
+  string destination_ip = 5;
+  uint32 destination_port = 6;
+  string host = 7;
+  string inbound_tag = 8;
+  string outbound_tag = 9;
+  string user = 10;
+}
+
+message CloseConnectionsRequest {
+  repeated uint32 ids = 1;
+}
+
+message CloseConnectionsResponse {
+  uint32 requested = 1;
+  repeated uint32 closed = 2;
+  repeated uint32 failed = 3;
+}
+
+message DNSCacheStatsRequest {}
+
+message DNSCacheStoreStats {
+  string name = 1;
+  string type = 2;
+  int64 usage_bytes = 3;
+  int64 limit_bytes = 4;
+  int64 entry_count = 5;
+  int64 valid_count = 6;
+  int64 expired_count = 7;
+  double usage_ratio = 8;
+  double valid_ratio = 9;
+  double expired_ratio = 10;
+}
+
+message DNSCacheStatsResponse {
+  bool available = 1;
+  string error = 2;
+  int64 usage_bytes = 3;
+  int64 limit_bytes = 4;
+  int64 entry_count = 5;
+  int64 valid_count = 6;
+  int64 expired_count = 7;
+  double usage_ratio = 8;
+  double valid_ratio = 9;
+  double expired_ratio = 10;
+  string updated_at = 11;
+  repeated DNSCacheStoreStats stores = 12;
+}
+
+message DNSCacheFlushResponse {
+  bool ok = 1;
+  string updated_at = 2;
+}
+
+message DNSQueryType {
+  string value = 1;
+  bool supported = 2;
+}
+
+message DNSQueryTypesResponse {
+  repeated DNSQueryType types = 1;
+}
+
+message DNSQueryRequest {
+  string domain = 1;
+  string type = 2;
+  string outbound_tag = 3;
+}
+
+message DNSQueryCache {
+  string state = 1;
+  int32 ttl_seconds = 2;
+  string source = 3;
+}
+
+message DNSQueryResponse {
+  bool ok = 1;
+  string domain = 2;
+  string type = 3;
+  repeated string records = 4;
+  uint32 ttl = 5;
+  DNSQueryCache cache_before = 6;
+  DNSQueryCache cache_after = 7;
+  string error = 8;
+  string queried_at = 9;
+}
+
+message NodeOutbound {
+  string tag = 1;
+  string type = 2;
+}
+
+message NodeStatus {
+  bool alive = 1;
+  int64 delay = 2;
+  string last_error = 3;
+  int64 last_seen_time = 4;
+  int64 last_try_time = 5;
+}
+
+message BalancerGroup {
+  string tag = 1;
+  string override_target = 2;
+  repeated string principle_targets = 3;
+  string strategy = 4;
+  string fallback_tag = 5;
+  bool manual_selectable = 6;
+  string error = 7;
+}
+
+message NodesResponse {
+  repeated NodeOutbound outbounds = 1;
+  repeated BalancerGroup groups = 2;
+  map<string, NodeStatus> statuses = 3;
+  map<string, string> errors = 4;
+  string updated_at = 5;
+}
+
+message OverrideBalancerRequest {
+  string balancer_tag = 1;
+  string target = 2;
+}
+
+message OverrideBalancerResponse {
+  bool ok = 1;
+}
+
+message ProbeModeRequest {
+  string mode = 1;
+}
+
+message ProbeModeResponse {
+  bool ok = 1;
+  string mode = 2;
+  bool supported = 3;
+}
+
+message ProbeTriggerResponse {
+  bool ok = 1;
+  bool scheduled = 2;
+  int32 targets = 3;
+}
+
+message RuleView {
+  string rule_tag = 1;
+  string target_tag = 2;
+  string balancer_tag = 3;
+  google.protobuf.Struct raw = 4;
+}
+
+message BalancerView {
+  string tag = 1;
+  repeated string selectors = 2;
+  string strategy = 3;
+  string fallback_tag = 4;
+  google.protobuf.Struct raw = 5;
+}
+
+message RulesResponse {
+  repeated RuleView rules = 1;
+  repeated BalancerView balancers = 2;
+  string updated_at = 3;
+}
+
+message RoutingConfigRequest {
+  string path = 1;
+}
+
+message RoutingConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.Struct routing = 3;
+  bool found_routing = 4;
+}
+
+message UpdateRoutingConfigRequest {
+  string path = 1;
+  google.protobuf.Struct routing = 2;
+}
+
+message OutboundsConfigRequest {
+  string path = 1;
+}
+
+message OutboundsConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.ListValue outbounds = 3;
+  bool found_outbounds = 4;
+}
+
+message UpdateOutboundsConfigRequest {
+  string path = 1;
+  google.protobuf.ListValue outbounds = 2;
+}
+
+message InboundsConfigRequest {
+  string path = 1;
+}
+
+message InboundsConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.ListValue inbounds = 3;
+  bool found_inbounds = 4;
+}
+
+message UpdateInboundsConfigRequest {
+  string path = 1;
+  google.protobuf.ListValue inbounds = 2;
+}
+
+message MainConfigRequest {
+  string path = 1;
+}
+
+message MainConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.Struct main = 3;
+  bool found_main = 4;
+}
+
+message UpdateMainConfigRequest {
+  string path = 1;
+  google.protobuf.Struct main = 2;
+}
+
+message ObservatoryConfigRequest {
+  string path = 1;
+}
+
+message ObservatoryConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.Struct observatory = 3;
+  bool found_observatory = 4;
+}
+
+message UpdateObservatoryConfigRequest {
+  string path = 1;
+  google.protobuf.Struct observatory = 2;
+}
+
+message SubscriptionConfigRequest {
+  string path = 1;
+}
+
+message SubscriptionConfigResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.Struct subscription = 3;
+  bool found_subscription = 4;
+}
+
+message UpdateSubscriptionConfigRequest {
+  string path = 1;
+  google.protobuf.Value subscription = 2;
+}
+
+message UpdateConfigResponse {
+  bool ok = 1;
+  string path = 2;
+}
+
+message StartupInfo {
+  repeated string argv = 1;
+  repeated string config_files = 2;
+  string conf_dir = 3;
+  string config_format = 4;
+  string cwd = 5;
+}
+
+message StartupInfoStatus {
+  bool available = 1;
+  string detail = 2;
+}
+
+message MetricsSettings {
+  string acore_grpc = 1;
+  string acore_metrics = 2;
+  string log_file = 3;
+  string restart_command = 4;
+  repeated string balancer_tags = 5;
+  string probe_mode = 6;
+}
+
+message GetSettingsResponse {
+  MetricsSettings settings = 1;
+  string path = 2;
+  StartupInfoStatus startup_info = 3;
+}
+
+message UpdateSettingsRequest {
+  google.protobuf.Struct update = 1;
+}
+
+message UpdateSettingsResponse {
+  bool ok = 1;
+  MetricsSettings settings = 2;
+}
+
+message RestartResponse {
+  bool ok = 1;
+  string mode = 2;
+  bool scheduled = 3;
+  repeated string files = 4;
+  string format = 5;
+  int64 id = 6;
+}
+
+message RestartStatusRequest {
+  int64 id = 1;
+}
+
+message RestartTaskStatus {
+  int64 id = 1;
+  string mode = 2;
+  bool in_progress = 3;
+  bool ok = 4;
+  string error = 5;
+  bool rolled_back = 6;
+  bool rollback_ok = 7;
+  string rollback_error = 8;
+}
+
+message RestartStatusResponse {
+  RestartTaskStatus restart = 1;
+}
+
+message HotReloadRequest {
+  repeated string targets = 1;
+}
+
+message HotReloadState {
+  bool needs_restart = 1;
+  repeated string warnings = 2;
+}
+
+message HotReloadExecution {
+  string mode = 1;
+  bool scheduled = 2;
+  repeated string files = 3;
+  string format = 4;
+  repeated string targets = 5;
+}
+
+message HotReloadResponse {
+  bool ok = 1;
+  int64 id = 2;
+  HotReloadState hot_reload = 3;
+  HotReloadExecution reload = 4;
+}
+
+message UIStateResponse {
+  string path = 1;
+  string format = 2;
+  google.protobuf.Struct state = 3;
+}
+
+message UpdateUIStateRequest {
+  google.protobuf.Struct patch = 1;
+}
+
+message UpdateUIStateResponse {
+  bool ok = 1;
+  string path = 2;
+  string format = 3;
+  google.protobuf.Struct state = 4;
+}
+
+message LogsRequest {
+  int32 tail = 1;
+  string level = 2;
+}
+
+message LogsResponse {
+  repeated string lines = 1;
+  string path = 2;
+  string source = 3;
+}
+
+message LogsConfigResponse {
+  string level = 1;
+  bool debug = 2;
+}
+
+message SetLogsConfigRequest {
+  oneof config {
+    string level = 1;
+    bool debug = 2;
+  }
+}
+
+message LogsStreamRequest {
+  int32 tail = 1;
+  string level = 2;
+}
+
+message LogsEvent {
+  string type = 1;
+  repeated string lines = 2;
+  string message = 3;
+}
+
+service MetricsService {
+  rpc GetConnections(ConnectionsRequest) returns (ConnectionsResponse) {}
+  rpc StreamConnections(ConnectionsStreamRequest) returns (stream ConnectionsResponse) {}
+  rpc CloseConnections(CloseConnectionsRequest) returns (CloseConnectionsResponse) {}
+  rpc GetDNSCacheStats(DNSCacheStatsRequest) returns (DNSCacheStatsResponse) {}
+  rpc FlushDNSCache(google.protobuf.Empty) returns (DNSCacheFlushResponse) {}
+  rpc GetDNSQueryTypes(google.protobuf.Empty) returns (DNSQueryTypesResponse) {}
+  rpc QueryDNS(DNSQueryRequest) returns (DNSQueryResponse) {}
+
+  rpc GetNodes(google.protobuf.Empty) returns (NodesResponse) {}
+  rpc OverrideBalancer(OverrideBalancerRequest) returns (OverrideBalancerResponse) {}
+  rpc GetObservatoryProbe(google.protobuf.Empty) returns (ProbeModeResponse) {}
+  rpc SetObservatoryProbe(ProbeModeRequest) returns (ProbeModeResponse) {}
+  rpc TriggerObservatoryProbe(google.protobuf.Empty) returns (ProbeTriggerResponse) {}
+
+  rpc GetRules(google.protobuf.Empty) returns (RulesResponse) {}
+  rpc GetRoutingConfig(RoutingConfigRequest) returns (RoutingConfigResponse) {}
+  rpc UpdateRoutingConfig(UpdateRoutingConfigRequest) returns (UpdateConfigResponse) {}
+  rpc GetOutboundsConfig(OutboundsConfigRequest) returns (OutboundsConfigResponse) {}
+  rpc UpdateOutboundsConfig(UpdateOutboundsConfigRequest) returns (UpdateConfigResponse) {}
+  rpc GetInboundsConfig(InboundsConfigRequest) returns (InboundsConfigResponse) {}
+  rpc UpdateInboundsConfig(UpdateInboundsConfigRequest) returns (UpdateConfigResponse) {}
+  rpc GetMainConfig(MainConfigRequest) returns (MainConfigResponse) {}
+  rpc UpdateMainConfig(UpdateMainConfigRequest) returns (UpdateConfigResponse) {}
+  rpc GetObservatoryConfig(ObservatoryConfigRequest) returns (ObservatoryConfigResponse) {}
+  rpc UpdateObservatoryConfig(UpdateObservatoryConfigRequest) returns (UpdateConfigResponse) {}
+  rpc GetSubscriptionConfig(SubscriptionConfigRequest) returns (SubscriptionConfigResponse) {}
+  rpc UpdateSubscriptionConfig(UpdateSubscriptionConfigRequest) returns (UpdateConfigResponse) {}
+
+  rpc GetStartupInfo(google.protobuf.Empty) returns (StartupInfo) {}
+  rpc GetSettings(google.protobuf.Empty) returns (GetSettingsResponse) {}
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {}
+  rpc GetUIState(google.protobuf.Empty) returns (UIStateResponse) {}
+  rpc UpdateUIState(UpdateUIStateRequest) returns (UpdateUIStateResponse) {}
+
+  rpc RestartCore(google.protobuf.Empty) returns (RestartResponse) {}
+  rpc GetRestartStatus(RestartStatusRequest) returns (RestartStatusResponse) {}
+  rpc HotReload(HotReloadRequest) returns (HotReloadResponse) {}
+
+  rpc GetLogs(LogsRequest) returns (LogsResponse) {}
+  rpc GetLogsConfig(google.protobuf.Empty) returns (LogsConfigResponse) {}
+  rpc SetLogsConfig(SetLogsConfigRequest) returns (LogsConfigResponse) {}
+  rpc StreamLogs(LogsStreamRequest) returns (stream LogsEvent) {}
+}

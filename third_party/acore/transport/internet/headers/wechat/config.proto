@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package acore.transport.internet.headers.wechat;
+option csharp_namespace = "Acore.Transport.Internet.Headers.Wechat";
+option go_package = "github.com/ImAubrey/acore/transport/internet/headers/wechat";
+option java_package = "com.acore.transport.internet.headers.wechat";
+option java_multiple_files = true;
+
+message VideoConfig {}

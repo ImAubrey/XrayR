@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package acore.common.net;
+option csharp_namespace = "Acore.Common.Net";
+option go_package = "github.com/ImAubrey/acore/common/net";
+option java_package = "com.acore.common.net";
+option java_multiple_files = true;
+
+import "common/net/network.proto";
+import "common/net/address.proto";
+
+// Endpoint of a network connection.
+message Endpoint {
+  Network network = 1;
+  IPOrDomain address = 2;
+  uint32 port = 3;
+}

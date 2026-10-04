@@ -2,15 +2,16 @@
 package rule
 
 import (
-	"fmt"
+	"context"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 
+	xerrors "github.com/ImAubrey/acore/common/errors"
 	mapset "github.com/deckarep/golang-set"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 type Manager struct {
@@ -48,8 +49,7 @@ func (r *Manager) GetDetectResult(tag string) (*[]api.DetectResult, error) {
 }
 
 func (r *Manager) Detect(tag string, destination string, email string) (reject bool) {
-	reject = false
-	var hitRuleID = -1
+	hitRuleID := -1
 	// If we have some rule for this inbound
 	if value, ok := r.InboundRule.Load(tag); ok {
 		ruleList := value.([]api.DetectRule)
@@ -65,7 +65,7 @@ func (r *Manager) Detect(tag string, destination string, email string) (reject b
 			l := strings.Split(email, "|")
 			uid, err := strconv.Atoi(l[len(l)-1])
 			if err != nil {
-				newError(fmt.Sprintf("Record illegal behavior failed! Cannot find user's uid: %s", email)).AtDebug().WriteToLog()
+				xerrors.LogDebug(context.Background(), "Record illegal behavior failed! Cannot find user's uid: ", email)
 				return reject
 			}
 			newSet := mapset.NewSetWith(api.DetectResult{UID: uid, RuleID: hitRuleID})

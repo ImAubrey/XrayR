@@ -16,13 +16,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/XrayR-project/XrayR/panel"
+	"github.com/ImAubrey/acore-backend/panel"
 )
 
 var (
 	cfgFile string
 	rootCmd = &cobra.Command{
-		Use: "XrayR",
+		Use: "acore-backend",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(); err != nil {
 				log.Fatal(err)
@@ -32,10 +32,10 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Config file for XrayR.")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Config file for acore-backend.")
 }
 
-func getConfig() *viper.Viper {
+func getConfig() (*viper.Viper, error) {
 	config := viper.New()
 
 	// Set custom path and name
@@ -47,7 +47,7 @@ func getConfig() *viper.Viper {
 		config.SetConfigName(configNameOnly)
 		config.SetConfigType(strings.TrimPrefix(configFileExt, "."))
 		config.AddConfigPath(configPath)
-		// Set ASSET Path and Config Path for XrayR
+		// Set ASSET Path and Config Path for acore-backend
 		os.Setenv("XRAY_LOCATION_ASSET", configPath)
 		os.Setenv("XRAY_LOCATION_CONFIG", configPath)
 	} else {
@@ -55,25 +55,28 @@ func getConfig() *viper.Viper {
 		config.SetConfigName("config")
 		config.SetConfigType("yml")
 		config.AddConfigPath(".")
-
 	}
 
 	if err := config.ReadInConfig(); err != nil {
-		log.Panicf("Config file error: %s \n", err)
+		return nil, fmt.Errorf("Config file error: %s", err)
 	}
 
 	config.WatchConfig() // Watch the config
 
-	return config
+	return config, nil
 }
 
 func run() error {
 	showVersion()
 
-	config := getConfig()
+	config, err := getConfig()
+	if err != nil {
+		return err
+	}
+
 	panelConfig := &panel.Config{}
 	if err := config.Unmarshal(panelConfig); err != nil {
-		return fmt.Errorf("Parse config file %v failed: %s \n", cfgFile, err)
+		return fmt.Errorf("Parse config file %v failed: %s", cfgFile, err)
 	}
 
 	if panelConfig.LogConfig.Level == "debug" {
@@ -91,7 +94,7 @@ func run() error {
 			// Delete old instance and trigger GC
 			runtime.GC()
 			if err := config.Unmarshal(panelConfig); err != nil {
-				log.Panicf("Parse config file %v failed: %s \n", cfgFile, err)
+				log.Panicf("Parse config file %v failed: %s", cfgFile, err)
 			}
 
 			if panelConfig.LogConfig.Level == "debug" {

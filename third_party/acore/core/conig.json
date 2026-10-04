@@ -1,0 +1,263 @@
+{
+    "inbounds": [
+        {
+            "port": 7893,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "network": "tcp,udp",
+                "followRedirect": true
+            },
+            "sniffing": {
+                "enabled": true,
+                "routeOnly": false,
+                "destOverride": [
+                    "http",
+                    "tls",
+                    "quic",
+                    "fakedns"
+                ]
+            },
+            "streamSettings": {
+                "sockopt": {
+                    "tproxy": "tproxy"
+                }
+            },
+            "tag": "tproxy"
+        },
+        {
+            "port": 1053,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "network": "tcp,udp",
+                "port": 53,
+                "address": "1.1.1.1",
+                "followRedirect": false
+            },
+            "streamSettings": {
+                "sockopt": {
+                    "tproxy": "off"
+                }
+            },
+            "tag": "dns-in"
+        }
+    ],
+    "outbounds": [
+        {
+            "tag": "out",
+            "protocol": "freedom",
+            "settings": {},
+            "streamSettings": {
+                "sockopt": {
+                    "mark": 2,
+                    "domainStrategy": "UseIP",
+                    "tcpFastOpen": true
+                }
+            }
+        },
+        {
+            "tag": "dns-out",
+            "protocol": "dns",
+            "settings": {
+                "port": 53,
+                "nonIPQuery": "skip"
+            }
+        },
+        {
+            "tag": "ping",
+            "protocol": "freedom",
+            "settings": {
+                "redirect": "127.0.0.1:80",
+                "streamSettings": {
+                    "sockopt": {
+                        "interface": "lo",
+                        "tcpFastOpen": true
+                    }
+                }
+            }
+        },
+        {
+            "tag": "hkv6",
+            "protocol": "freedom",
+            "sendThrough": "2a0f:7802:e2f5::/48",
+            "settings": {
+                "domainStrategy": "ForceIPv6"
+            }
+        },
+        {
+            "tag": "hkv6-force-disney6",
+            "protocol": "freedom",
+            "sendThrough": "2a0f:7802:e2f5::/48",
+            "settings": {
+                "redirect": "[2600:9000:2755:7e00:b:6449:33c0:93a1]:0",
+                "domainStrategy": "ForceIPv6"
+            }
+        },
+        {
+            "tag": "hkv6-2",
+            "protocol": "freedom",
+            "sendThrough": "2a0f:7803:fb40::/48",
+            "settings": {
+                "domainStrategy": "ForceIPv6"
+            }
+        },
+        {
+            "tag": "src-out",
+            "protocol": "freedom",
+            "sendThrough": "0.0.0.0/24",
+            "settings": {
+                "domainStrategy": "UseIP"
+            }
+        },
+        {
+            "tag": "blackhole",
+            "protocol": "blackhole"
+        }
+    ],
+    "api": {
+        "tag": "api",
+        "listen": "127.0.0.1:8080",
+        "services": [
+            "ConnectionService"
+        ]
+    },
+    "dns": {
+        "hosts": {},
+        "servers": [
+            {
+                "address": "https+local://8.8.8.8/dns-query",
+                "domains": [
+                    "geosite:google"
+                ],
+                "skipFallback": false
+            },
+            {
+                "address": "https+local://[2001:4860:4860:0:0:0:0:8888]/dns-query",
+                "expectIPs": [
+                    "geoip:cloudflare",
+                    "geoip:hk"
+                ],
+                "skipFallback": false,
+                "clientIP": "104.192.93.2"
+            },
+            {
+                "address": "https+local://[2001:4860:4860:0:0:0:0:8888]/dns-query",
+                "skipFallback": true,
+                "clientIP": "115.162.149.1",
+                "domains": [
+                    "geosite:twitter",
+                    "geosite:jsdelivr"
+                ]
+            },
+            {
+                "address": "https+local://[2001:4860:4860:0:0:0:0:8888]/dns-query",
+                "skipFallback": false,
+                "expectIPs": [
+                    "geoip:fastly"
+                ],
+                "clientIP": "115.162.149.1"
+            },
+            {
+                "address": "https+local://1.0.0.1/dns-query",
+                "skipFallback": false,
+                "clientIP": "103.214.41.1"
+            },
+            {
+                "address": "https+local://[2606:4700:4700::1111]/dns-query",
+                "skipFallback": false,
+                "clientIP": "103.214.41.1"
+            },
+            {
+                "address": "fakedns",
+                "skipFallback": true,
+                "domains": [
+                    "domain:gemini.google.com",
+                    "full:spclient.wg.spotify.com",
+                    "full:disney.api.edge.bamgrid.com",
+                    "full:static-assets.bamgrid.com",
+                    "full:startup.core.indazn.com",
+                    "full:www.primevideo.com",
+                    "full:geolocation.onetrust.com",
+                    "full:store.steampowered.com",
+                    "full:www.viu.com",
+                    "full:api.viu.now.com",
+                    "full:www.mytvsuper.com",
+                    "full:ani.gamer.com.tw",
+                    "geosite:openai",
+                    "geosite:netflix",
+                    "domain:max.com",
+                    "domain:hbo.com",
+                    "domain:hbogo.com",
+                    "domain:hbomax.com",
+                    "domain:hbomaxcdn.com",
+                    "domain:hbonow.com",
+                    "domain:maxgo.com",
+                    "domain:discomax.com"
+                ]
+            }
+        ],
+        "tag": "dns_inbound"
+    },
+    "fakedns": [
+        {
+            "ipPool": "2001:db8:114:514:1::/112",
+            "poolSize": 65534
+        },
+        {
+            "ipPool": "11.11.1.0/24",
+            "poolSize": 254
+        }
+    ],
+    "routing": {
+        "domainStrategy": "IPIfNonMatch",
+        "rules": [
+            {
+                "type": "field",
+                "port": "7893",
+                "outboundTag": "blackhole"
+            },
+            {
+                "type": "field",
+                "port": "443",
+                "network": "udp",
+                "outboundTag": "blackhole"
+            },
+            {
+                "type": "field",
+                "port": "53,1053",
+                "outboundTag": "dns-out"
+            },
+            {
+                "type": "field",
+                "outboundTag": "blackhole",
+                "domain": [
+                    "geosite:category-ads-all"
+                ]
+            },
+            
+            {
+                "type": "field",
+                "outboundTag": "src-out",
+                "ip": [
+                    "::/0",
+                    "0.0.0.0/0"
+                ]
+            }
+        ],
+        "balancers": [
+            {
+                "tag": "hkv6",
+                "selector": [
+                    "hkv6",
+                    "hkv6-2"
+                ],
+                "fallbackTag": "sgv6"
+            }
+        ]
+    },
+    "log": {
+        "access": "",
+        "error": "",
+        "loglevel": "error",
+        "dnsLog": false
+    }
+}

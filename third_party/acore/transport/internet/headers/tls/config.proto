@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package acore.transport.internet.headers.tls;
+option csharp_namespace = "Acore.Transport.Internet.Headers.Tls";
+option go_package = "github.com/ImAubrey/acore/transport/internet/headers/tls";
+option java_package = "com.acore.transport.internet.headers.tls";
+option java_multiple_files = true;
+
+message PacketConfig {}

@@ -4,25 +4,23 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xtls/xray-core/common/protocol"
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/features/inbound"
-	"github.com/xtls/xray-core/features/outbound"
-	"github.com/xtls/xray-core/features/stats"
-	"github.com/xtls/xray-core/proxy"
+	"github.com/ImAubrey/acore/common/protocol"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/features/inbound"
+	"github.com/ImAubrey/acore/features/outbound"
+	"github.com/ImAubrey/acore/features/stats"
+	"github.com/ImAubrey/acore/proxy"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/common/limiter"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/common/limiter"
 )
 
 func (c *Controller) removeInbound(tag string) error {
-	err := c.ibm.RemoveHandler(context.Background(), tag)
-	return err
+	return c.ibm.RemoveHandler(context.Background(), tag)
 }
 
 func (c *Controller) removeOutbound(tag string) error {
-	err := c.obm.RemoveHandler(context.Background(), tag)
-	return err
+	return c.obm.RemoveHandler(context.Background(), tag)
 }
 
 func (c *Controller) addInbound(config *core.InboundHandlerConfig) error {
@@ -32,12 +30,9 @@ func (c *Controller) addInbound(config *core.InboundHandlerConfig) error {
 	}
 	handler, ok := rawHandler.(inbound.Handler)
 	if !ok {
-		return fmt.Errorf("not an InboundHandler: %s", err)
+		return fmt.Errorf("not an InboundHandler")
 	}
-	if err := c.ibm.AddHandler(context.Background(), handler); err != nil {
-		return err
-	}
-	return nil
+	return c.ibm.AddHandler(context.Background(), handler)
 }
 
 func (c *Controller) addOutbound(config *core.OutboundHandlerConfig) error {
@@ -47,12 +42,9 @@ func (c *Controller) addOutbound(config *core.OutboundHandlerConfig) error {
 	}
 	handler, ok := rawHandler.(outbound.Handler)
 	if !ok {
-		return fmt.Errorf("not an InboundHandler: %s", err)
+		return fmt.Errorf("not an OutboundHandler")
 	}
-	if err := c.obm.AddHandler(context.Background(), handler); err != nil {
-		return err
-	}
-	return nil
+	return c.obm.AddHandler(context.Background(), handler)
 }
 
 func (c *Controller) addUsers(users []*protocol.User, tag string) error {
@@ -94,7 +86,7 @@ func (c *Controller) removeUsers(users []string, tag string) error {
 
 	userManager, ok := inboundInstance.GetInbound().(proxy.UserManager)
 	if !ok {
-		return fmt.Errorf("handler %s is not implement proxy.UserManager", err)
+		return fmt.Errorf("handler %s is not implement proxy.UserManager", tag)
 	}
 	for _, email := range users {
 		err = userManager.RemoveUser(context.Background(), email)
@@ -133,29 +125,45 @@ func (c *Controller) resetTraffic(upCounterList *[]stats.Counter, downCounterLis
 }
 
 func (c *Controller) AddInboundLimiter(tag string, nodeSpeedLimit uint64, userList *[]api.UserInfo, globalDeviceLimitConfig *limiter.GlobalDeviceLimitConfig) error {
-	err := c.dispatcher.Limiter.AddInboundLimiter(tag, nodeSpeedLimit, userList, globalDeviceLimitConfig)
-	return err
+	if c.dispatcher == nil {
+		return nil
+	}
+	return c.dispatcher.Limiter.AddInboundLimiter(tag, nodeSpeedLimit, userList, globalDeviceLimitConfig)
 }
 
 func (c *Controller) UpdateInboundLimiter(tag string, updatedUserList *[]api.UserInfo) error {
-	err := c.dispatcher.Limiter.UpdateInboundLimiter(tag, updatedUserList)
-	return err
+	if c.dispatcher == nil {
+		return nil
+	}
+	return c.dispatcher.Limiter.UpdateInboundLimiter(tag, updatedUserList)
 }
 
 func (c *Controller) DeleteInboundLimiter(tag string) error {
-	err := c.dispatcher.Limiter.DeleteInboundLimiter(tag)
-	return err
+	if c.dispatcher == nil {
+		return nil
+	}
+	return c.dispatcher.Limiter.DeleteInboundLimiter(tag)
 }
 
 func (c *Controller) GetOnlineDevice(tag string) (*[]api.OnlineUser, error) {
+	if c.dispatcher == nil {
+		onlineUsers := []api.OnlineUser{}
+		return &onlineUsers, nil
+	}
 	return c.dispatcher.Limiter.GetOnlineDevice(tag)
 }
 
 func (c *Controller) UpdateRule(tag string, newRuleList []api.DetectRule) error {
-	err := c.dispatcher.RuleManager.UpdateRule(tag, newRuleList)
-	return err
+	if c.dispatcher == nil {
+		return nil
+	}
+	return c.dispatcher.RuleManager.UpdateRule(tag, newRuleList)
 }
 
 func (c *Controller) GetDetectResult(tag string) (*[]api.DetectResult, error) {
+	if c.dispatcher == nil {
+		detectResults := []api.DetectResult{}
+		return &detectResults, nil
+	}
 	return c.dispatcher.RuleManager.GetDetectResult(tag)
 }

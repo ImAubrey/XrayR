@@ -2,7 +2,9 @@
 package serverstatus
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -12,8 +14,7 @@ import (
 
 // GetSystemInfo get the system info of a given periodic
 func GetSystemInfo() (Cpu float64, Mem float64, Disk float64, Uptime uint64, err error) {
-
-	errorString := ""
+	var errorMessages []string
 
 	cpuPercent, err := cpu.Percent(0, false)
 	// Check if cpuPercent is empty
@@ -21,32 +22,32 @@ func GetSystemInfo() (Cpu float64, Mem float64, Disk float64, Uptime uint64, err
 		Cpu = cpuPercent[0]
 	} else {
 		Cpu = 0
-		errorString += fmt.Sprintf("get cpu usage failed: %s ", err)
+		errorMessages = append(errorMessages, fmt.Sprintf("get cpu usage failed: %s", err))
 	}
 
 	memUsage, err := mem.VirtualMemory()
 	if err != nil {
-		errorString += fmt.Sprintf("get mem usage failed: %s ", err)
+		errorMessages = append(errorMessages, fmt.Sprintf("get mem usage failed: %s", err))
 	} else {
 		Mem = memUsage.UsedPercent
 	}
 
 	diskUsage, err := disk.Usage("/")
 	if err != nil {
-		errorString += fmt.Sprintf("get disk usage failed: %s ", err)
+		errorMessages = append(errorMessages, fmt.Sprintf("get disk usage failed: %s", err))
 	} else {
 		Disk = diskUsage.UsedPercent
 	}
 
 	uptime, err := host.Uptime()
 	if err != nil {
-		errorString += fmt.Sprintf("get uptime failed: %s ", err)
+		errorMessages = append(errorMessages, fmt.Sprintf("get uptime failed: %s", err))
 	} else {
 		Uptime = uptime
 	}
 
-	if errorString != "" {
-		err = fmt.Errorf(errorString)
+	if len(errorMessages) > 0 {
+		err = errors.New(strings.Join(errorMessages, "; "))
 	}
 
 	return Cpu, Mem, Disk, Uptime, err

@@ -14,13 +14,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/ImAubrey/acore/common/net"
+	"github.com/ImAubrey/acore/infra/conf"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
 	"github.com/gogf/gf/v2/util/gconv"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 // APIClient create an api client to the panel.

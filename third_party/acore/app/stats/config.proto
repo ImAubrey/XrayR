@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package acore.app.stats;
+option csharp_namespace = "Acore.App.Stats";
+option go_package = "github.com/ImAubrey/acore/app/stats";
+option java_package = "com.acore.app.stats";
+option java_multiple_files = true;
+
+message Config {}
+
+message ChannelConfig {
+  bool Blocking = 1;
+  int32 SubscriberLimit = 2;
+  int32 BufferSize = 3;
+}

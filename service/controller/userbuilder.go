@@ -1,21 +1,24 @@
 package controller
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
 
+	xerrors "github.com/ImAubrey/acore/common/errors"
+	"github.com/ImAubrey/acore/common/protocol"
+	"github.com/ImAubrey/acore/common/serial"
+	"github.com/ImAubrey/acore/infra/conf"
+	hyaccount "github.com/ImAubrey/acore/proxy/hysteria/account"
+	"github.com/ImAubrey/acore/proxy/shadowsocks"
+	"github.com/ImAubrey/acore/proxy/shadowsocks_2022"
+	"github.com/ImAubrey/acore/proxy/trojan"
+	"github.com/ImAubrey/acore/proxy/vless"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
-	"github.com/xtls/xray-core/common/protocol"
-	"github.com/xtls/xray-core/common/serial"
-	"github.com/xtls/xray-core/infra/conf"
-	"github.com/xtls/xray-core/proxy/shadowsocks"
-	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
-	"github.com/xtls/xray-core/proxy/trojan"
-	"github.com/xtls/xray-core/proxy/vless"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 var AEADMethod = map[shadowsocks.CipherType]uint8{
@@ -81,16 +84,14 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 			e := c.buildUserTag(&user)
 			userKey, err := c.checkShadowsocksPassword(user.Passwd, method)
 			if err != nil {
-				newError(fmt.Errorf("[UID: %d] %s", user.UID, err)).AtError().WriteToLog()
+				xerrors.LogError(context.Background(), "[UID: ", user.UID, "] ", err)
 				continue
 			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
-				Account: serial.ToTypedMessage(&shadowsocks_2022.User{
-					Key:   userKey,
-					Email: e,
-					Level: 0,
+				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
+					Key: userKey,
 				}),
 			}
 		} else {
@@ -116,16 +117,14 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 			e := c.buildUserTag(&user)
 			userKey, err := c.checkShadowsocksPassword(user.Passwd, user.Method)
 			if err != nil {
-				newError(fmt.Errorf("[UID: %d] %s", user.UID, err)).AtError().WriteToLog()
+				xerrors.LogError(context.Background(), "[UID: ", user.UID, "] ", err)
 				continue
 			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
-				Account: serial.ToTypedMessage(&shadowsocks_2022.User{
-					Key:   userKey,
-					Email: e,
-					Level: 0,
+				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
+					Key: userKey,
 				}),
 			}
 		} else {
@@ -141,6 +140,24 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 					}),
 				}
 			}
+		}
+	}
+	return users
+}
+
+func (c *Controller) buildHysteriaUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
+	users = make([]*protocol.User, len(*userInfo))
+	for i, user := range *userInfo {
+		auth := user.UUID
+		if user.Passwd != "" {
+			auth = user.Passwd
+		}
+		users[i] = &protocol.User{
+			Level: 0,
+			Email: c.buildUserTag(&user),
+			Account: serial.ToTypedMessage(&hyaccount.Account{
+				Auth: auth,
+			}),
 		}
 	}
 	return users

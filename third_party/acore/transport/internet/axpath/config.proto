@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package acore.transport.internet.axpath;
+option csharp_namespace = "Acore.Transport.Internet.Axpath";
+option go_package = "github.com/ImAubrey/acore/transport/internet/axpath";
+option java_package = "com.acore.transport.internet.axpath";
+option java_multiple_files = true;
+
+message Config {
+  // Number of TCP subflows to establish for one logical connection.
+  // Valid range: 1-116. Default: 4.
+  uint32 subflows = 1;
+
+  // Max segment size (bytes) for DSN mapping / reassembly.
+  // Default: 32768.
+  uint32 chunk_size = 2;
+
+  // SACK capacity in bits. Each SACK block is 128 bits (start+end uint64).
+  // Must be a multiple of 8.
+  // Default: 1024 (8 SACK blocks).
+  uint32 ack_mask_bits = 3;
+
+  // Max bytes kept in-flight (un-ACKed) per direction.
+  // Default: 33554432 (32 MiB).
+  uint32 max_inflight_bytes = 4;
+
+  // Max queued frames per subflow writer.
+  // Default: 32.
+  uint32 max_queue_per_flow = 5;
+
+  // How long to wait for at least one subflow to become ready during Dial.
+  // Default: 16000.
+  uint32 join_timeout_ms = 6;
+
+  // Server-side: how long to keep an empty session (no subflows) for resume.
+  // Default: 10000.
+  uint32 resume_timeout_ms = 7;
+
+  // Client-side: whether to reconnect subflows automatically.
+  // Default: true.
+  optional bool reconnect = 8;
+
+  // Optional PSK for HELLO authentication. Empty means disabled.
+  string psk = 9;
+}

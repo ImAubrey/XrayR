@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/infra/conf"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 // OutboundBuilder build freedom outbound config for addOutbound
@@ -17,7 +17,9 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 	outboundDetourConfig.Tag = tag
 
 	// SendThrough setting
-	outboundDetourConfig.SendThrough = &config.SendIP
+	if config.SendIP != "" {
+		outboundDetourConfig.SendThrough = conf.SendThroughConfig{Raw: &config.SendIP}
+	}
 
 	// Freedom Protocol setting
 	var domainStrategy = "Asis"
@@ -30,9 +32,10 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 	}
 	proxySetting := &conf.FreedomConfig{
 		DomainStrategy: domainStrategy,
+		PreConKeep:     json.RawMessage("false"),
 	}
 	// Used for Shadowsocks-Plugin
-	if nodeInfo.NodeType == "dokodemo-door" {
+	if api.CanonicalNodeType(nodeInfo.NodeType, nodeInfo.EnableVless) == "dokodemo-door" {
 		proxySetting.Redirect = fmt.Sprintf("127.0.0.1:%d", nodeInfo.Port-1)
 	}
 	var setting json.RawMessage

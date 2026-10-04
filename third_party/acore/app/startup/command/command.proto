@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package acore.app.startup.command;
+option csharp_namespace = "Acore.App.Startup.Command";
+option go_package = "github.com/ImAubrey/acore/app/startup/command";
+option java_package = "com.acore.app.startup.command";
+option java_multiple_files = true;
+
+message GetStartupInfoRequest {}
+
+message StartupInfo {
+  repeated string argv = 1;
+  repeated string config_files = 2;
+  string conf_dir = 3;
+  string config_format = 4;
+  string cwd = 5;
+}
+
+service StartupService {
+  rpc GetStartupInfo(GetStartupInfoRequest) returns (StartupInfo) {}
+}
+
+message Config {}

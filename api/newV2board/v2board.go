@@ -14,12 +14,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/ImAubrey/acore/common/net"
+	"github.com/ImAubrey/acore/infra/conf"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 // APIClient create an api client to the panel.
@@ -56,13 +56,7 @@ func New(apiConfig *api.Config) *APIClient {
 	})
 	client.SetBaseURL(apiConfig.APIHost)
 
-	var nodeType string
-
-	if apiConfig.NodeType == "V2ray" && apiConfig.EnableVless {
-		nodeType = "vless"
-	} else {
-		nodeType = strings.ToLower(apiConfig.NodeType)
-	}
+	nodeType := api.CanonicalNodeType(apiConfig.NodeType, apiConfig.EnableVless)
 	// Create Key for each requests
 	client.SetQueryParams(map[string]string{
 		"node_id":   strconv.Itoa(apiConfig.NodeID),
@@ -94,12 +88,11 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	if path != "" {
 		// open the file
 		file, err := os.Open(path)
-		defer file.Close()
-		// handle errors while opening
 		if err != nil {
 			log.Printf("Error when opening file: %s", err)
 			return LocalRuleList
 		}
+		defer file.Close()
 
 		fileScanner := bufio.NewScanner(file)
 
@@ -175,7 +168,9 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		return nil, err
 	}
 	b, _ := nodeInfoResp.Encode()
-	json.Unmarshal(b, server)
+	if err := json.Unmarshal(b, server); err != nil {
+		return nil, fmt.Errorf("decode node config failed: %w", err)
+	}
 
 	if server.ServerPort == 0 {
 		return nil, errors.New("server port must > 0")
@@ -183,13 +178,15 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 
 	c.resp.Store(server)
 
-	switch c.NodeType {
-	case "V2ray", "Vmess", "Vless":
+	switch api.CanonicalNodeType(c.NodeType, c.EnableVless) {
+	case "v2ray", "vmess", "vless":
 		nodeInfo, err = c.parseV2rayNodeResponse(server)
-	case "Trojan":
+	case "trojan":
 		nodeInfo, err = c.parseTrojanNodeResponse(server)
-	case "Shadowsocks":
+	case "shadowsocks":
 		nodeInfo, err = c.parseSSNodeResponse(server)
+	case api.NodeTypeHY2:
+		nodeInfo, err = c.parseHysteriaNodeResponse(server)
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", c.NodeType)
 	}
@@ -197,6 +194,8 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse node info failed: %s, \nError: %v", res.String(), err)
 	}
+	nodeInfo.APIHost = c.APIHost
+	nodeInfo.APIKey = c.Key
 
 	return nodeInfo, nil
 }
@@ -206,9 +205,9 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	var users []*user
 	path := "/api/v1/server/UniProxy/user"
 
-	switch c.NodeType {
-	case "V2ray", "Trojan", "Shadowsocks", "Vmess", "Vless":
-		break
+	nodeType := api.CanonicalNodeType(c.NodeType, c.EnableVless)
+	switch nodeType {
+	case "v2ray", "vmess", "vless", "trojan", "shadowsocks", api.NodeTypeHY2:
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", c.NodeType)
 	}
@@ -232,7 +231,9 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 		return nil, err
 	}
 	b, _ := usersResp.Get("users").Encode()
-	json.Unmarshal(b, &users)
+	if err := json.Unmarshal(b, &users); err != nil {
+		return nil, fmt.Errorf("decode user list failed: %w", err)
+	}
 	if len(users) == 0 {
 		return nil, errors.New("users is null")
 	}
@@ -240,7 +241,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	userList := make([]api.UserInfo, len(users))
 	for i := 0; i < len(users); i++ {
 		u := api.UserInfo{
-			UID:  users[i].Id,
+			UID:  int(users[i].Id),
 			UUID: users[i].Uuid,
 		}
 
@@ -253,8 +254,8 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 
 		u.DeviceLimit = c.DeviceLimit // todo waiting v2board send configuration
 		u.Email = u.UUID + "@v2board.user"
-		if c.NodeType == "Shadowsocks" {
-			u.Passwd = u.UUID
+		if nodeType == "shadowsocks" || nodeType == api.NodeTypeHY2 {
+			u.Passwd = firstNonEmpty(users[i].Password, users[i].Passwd, u.UUID)
 		}
 		userList[i] = u
 	}
@@ -361,6 +362,40 @@ func (c *APIClient) parseSSNodeResponse(s *serverConfig) (*api.NodeInfo, error) 
 	}, nil
 }
 
+// parseHysteriaNodeResponse parses Hysteria2 / HY2 node data returned by NewV2board UniProxy.
+func (c *APIClient) parseHysteriaNodeResponse(s *serverConfig) (*api.NodeInfo, error) {
+	version := s.Version
+	if version == 0 {
+		version = 2
+	}
+	obfs := s.Obfs
+	if obfs == "" && s.ObfsPassword != "" {
+		obfs = "salamander"
+	}
+	nodeInfo := &api.NodeInfo{
+		NodeType:          c.NodeType,
+		NodeID:            c.NodeID,
+		Port:              uint32(s.ServerPort),
+		TransportProtocol: "hysteria",
+		EnableTLS:         true,
+		Host:              s.Host,
+		ServiceName:       s.ServerName,
+		NameServerConfig:  s.parseDNSConfig(),
+		HysteriaConfig: &conf.HysteriaConfig{
+			Version:      int32(version),
+			Obfs:         obfs,
+			ObfsPassword: s.ObfsPassword,
+			Masquerade: conf.HysteriaMasqueradeConfig{
+				Type: "404",
+			},
+		},
+	}
+	if s.DownMbps > 0 {
+		nodeInfo.SpeedLimit = uint64(s.DownMbps) * 1000000 / 8
+	}
+	return nodeInfo, nil
+}
+
 // parseV2rayNodeResponse parse the response for the given nodeInfo format
 func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, error) {
 	var (
@@ -377,26 +412,28 @@ func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, erro
 	} else {
 		dest = s.VlessTlsSettings.Sni
 	}
-	if s.VlessTlsSettings.xVer != 0 {
-		xVer = s.VlessTlsSettings.xVer
+	serverPort := s.VlessTlsSettings.ServerPort.String()
+	if s.VlessTlsSettings.Xver != 0 {
+		xVer = uint64(s.VlessTlsSettings.Xver)
 	} else {
 		xVer = 0
 	}
 
 	realityConfig := api.REALITYConfig{
-		Dest:             dest + ":" + s.VlessTlsSettings.ServerPort,
+		Dest:             dest + ":" + serverPort,
 		ProxyProtocolVer: xVer,
 		ServerNames:      []string{s.VlessTlsSettings.Sni},
 		PrivateKey:       s.VlessTlsSettings.PrivateKey,
 		ShortIds:         []string{s.VlessTlsSettings.ShortId},
 	}
 
-	if c.EnableVless {
+	isVless := api.IsVlessNodeType(c.NodeType, c.EnableVless)
+	if isVless {
 		s.NetworkSettings = s.VlessNetworkSettings
 	}
 
 	switch s.Network {
-	case "ws":
+	case "ws", "httpupgrade":
 		if s.NetworkSettings.Headers != nil {
 			if httpHeader, err := s.NetworkSettings.Headers.MarshalJSON(); err != nil {
 				return nil, err
@@ -437,7 +474,7 @@ func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, erro
 		EnableTLS:         enableTLS,
 		Path:              s.NetworkSettings.Path,
 		Host:              host,
-		EnableVless:       c.EnableVless,
+		EnableVless:       isVless,
 		VlessFlow:         s.VlessFlow,
 		ServiceName:       s.NetworkSettings.ServiceName,
 		Header:            header,
@@ -458,4 +495,13 @@ func (s *serverConfig) parseDNSConfig() (nameServerList []*conf.NameServerConfig
 	}
 
 	return
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

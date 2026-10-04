@@ -1,0 +1,54 @@
+package trojan
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ImAubrey/acore/common"
+	"github.com/ImAubrey/acore/common/protocol"
+)
+
+// MemoryAccount is an account type converted from Account.
+type MemoryAccount struct {
+	Password string
+	Key      []byte
+}
+
+// AsAccount implements protocol.AsAccount.
+func (a *Account) AsAccount() (protocol.Account, error) {
+	password := a.GetPassword()
+	key := hexSha224(password)
+	return &MemoryAccount{
+		Password: password,
+		Key:      key,
+	}, nil
+}
+
+// Equals implements protocol.Account.Equals().
+func (a *MemoryAccount) Equals(another protocol.Account) bool {
+	if account, ok := another.(*MemoryAccount); ok {
+		return a.Password == account.Password
+	}
+	return false
+}
+
+func (a *MemoryAccount) ToProto() proto.Message {
+	return &Account{
+		Password: a.Password,
+	}
+}
+
+func hexSha224(password string) []byte {
+	buf := make([]byte, 56)
+	hash := sha256.New224()
+	common.Must2(hash.Write([]byte(password)))
+	hex.Encode(buf, hash.Sum(nil))
+	return buf
+}
+
+func hexString(data []byte) string {
+	// `data` is already the lower-case hex string of sha224(password).
+	// Avoid hex-encoding it again (which is slower and doubles the length).
+	return string(data)
+}

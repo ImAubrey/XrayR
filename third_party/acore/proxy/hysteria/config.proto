@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package acore.proxy.hysteria;
+option csharp_namespace = "Acore.Proxy.Hysteria";
+option go_package = "github.com/ImAubrey/acore/proxy/hysteria";
+option java_package = "com.acore.proxy.hysteria";
+option java_multiple_files = true;
+
+import "common/protocol/server_spec.proto";
+import "common/protocol/user.proto";
+
+message ClientConfig {
+  int32 version = 1;
+  acore.common.protocol.ServerEndpoint server = 2;
+}
+
+message ServerConfig {
+  repeated acore.common.protocol.User users = 1;
+}

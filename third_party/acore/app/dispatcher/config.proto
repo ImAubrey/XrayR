@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package acore.app.dispatcher;
+option csharp_namespace = "Acore.App.Dispatcher";
+option go_package = "github.com/ImAubrey/acore/app/dispatcher";
+option java_package = "com.acore.app.dispatcher";
+option java_multiple_files = true;
+
+message SessionConfig {
+  reserved 1;
+}
+
+message Config {
+  SessionConfig settings = 1;
+}

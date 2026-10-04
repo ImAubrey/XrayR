@@ -3,8 +3,8 @@ package gov2panel_test
 import (
 	"testing"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/api/gov2panel"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/api/gov2panel"
 )
 
 func CreateClient() api.API {

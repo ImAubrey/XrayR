@@ -1,0 +1,350 @@
+package dokodemo
+
+import (
+	"context"
+	"strconv"
+	"strings"
+
+	"github.com/ImAubrey/acore/common"
+	"github.com/ImAubrey/acore/common/buf"
+	"github.com/ImAubrey/acore/common/errors"
+	"github.com/ImAubrey/acore/common/log"
+	"github.com/ImAubrey/acore/common/net"
+	"github.com/ImAubrey/acore/common/protocol"
+	"github.com/ImAubrey/acore/common/session"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/features/policy"
+	"github.com/ImAubrey/acore/features/routing"
+	"github.com/ImAubrey/acore/transport"
+	"github.com/ImAubrey/acore/transport/internet/stat"
+	"github.com/ImAubrey/acore/transport/internet/tls"
+)
+
+const maxPacketWriterFakeUDPConns = 256
+
+var fakeUDPFactory = FakeUDP
+
+func init() {
+	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
+		d := new(DokodemoDoor)
+		err := core.RequireFeatures(ctx, func(pm policy.Manager) error {
+			return d.Init(config.(*Config), pm, session.SockoptFromContext(ctx))
+		})
+		return d, err
+	}))
+}
+
+type DokodemoDoor struct {
+	policyManager policy.Manager
+	config        *Config
+	address       net.Address
+	port          net.Port
+	portMap       map[string]string
+	sockopt       *session.Sockopt
+}
+
+// Init initializes the DokodemoDoor instance with necessary parameters.
+func (d *DokodemoDoor) Init(config *Config, pm policy.Manager, sockopt *session.Sockopt) error {
+	if len(config.Networks) == 0 {
+		return errors.New("no network specified")
+	}
+	d.config = config
+	d.address = config.GetPredefinedAddress()
+	d.port = net.Port(config.Port)
+	d.portMap = config.PortMap
+	d.policyManager = pm
+	d.sockopt = sockopt
+
+	return nil
+}
+
+// Network implements proxy.Inbound.
+func (d *DokodemoDoor) Network() []net.Network {
+	return d.config.Networks
+}
+
+func (d *DokodemoDoor) policy() policy.Session {
+	config := d.config
+	p := d.policyManager.ForLevel(config.UserLevel)
+	return p
+}
+
+// Process implements proxy.Inbound.
+func (d *DokodemoDoor) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
+	errors.LogDebug(ctx, "processing connection from: ", conn.RemoteAddr())
+	dest := net.Destination{
+		Network: network,
+		Address: d.address,
+		Port:    d.port,
+	}
+
+	if !d.config.FollowRedirect {
+		host, port, err := net.SplitHostPort(conn.LocalAddr().String())
+		if dest.Address == nil {
+			if err != nil {
+				dest.Address = net.DomainAddress("localhost")
+			} else {
+				if strings.Contains(host, ".") {
+					dest.Address = net.LocalHostIP
+				} else {
+					dest.Address = net.LocalHostIPv6
+				}
+			}
+		}
+		if dest.Port == 0 {
+			dest.Port = net.Port(common.Must2(strconv.Atoi(port)))
+		}
+		if d.portMap != nil && d.portMap[port] != "" {
+			h, p, _ := net.SplitHostPort(d.portMap[port])
+			if len(h) > 0 {
+				dest.Address = net.ParseAddress(h)
+			}
+			if len(p) > 0 {
+				dest.Port = net.Port(common.Must2(strconv.Atoi(p)))
+			}
+		}
+	}
+
+	destinationOverridden := false
+	if d.config.FollowRedirect {
+		outbounds := session.OutboundsFromContext(ctx)
+		if len(outbounds) > 0 {
+			ob := outbounds[len(outbounds)-1]
+			if ob.Target.IsValid() {
+				dest = ob.Target
+				destinationOverridden = true
+			}
+		}
+		iConn := stat.TryUnwrapStatsConn(conn)
+		if tlsConn, ok := iConn.(tls.Interface); ok && !destinationOverridden {
+			if serverName := tlsConn.HandshakeContextServerName(ctx); serverName != "" {
+				dest.Address = net.DomainAddress(serverName)
+				destinationOverridden = true
+				ctx = session.ContextWithMitmServerName(ctx, serverName)
+			}
+			if tlsConn.NegotiatedProtocol() != "h2" {
+				ctx = session.ContextWithMitmAlpn11(ctx, true)
+			}
+		}
+	}
+	if !dest.IsValid() || dest.Address == nil {
+		return errors.New("unable to get destination")
+	}
+
+	inbound := session.InboundFromContext(ctx)
+	inbound.Name = "dokodemo-door"
+	inbound.CanSpliceCopy = 1
+	inbound.User = &protocol.MemoryUser{
+		Level: d.config.UserLevel,
+	}
+
+	ctx = log.ContextWithAccessMessage(ctx, &log.AccessMessage{
+		From:   conn.RemoteAddr(),
+		To:     dest,
+		Status: log.AccessAccepted,
+		Reason: "",
+	})
+	errors.LogInfo(ctx, "received request for ", conn.RemoteAddr())
+
+	var reader buf.Reader
+	if dest.Network == net.Network_TCP {
+		reader = buf.NewReader(conn)
+	} else {
+		reader = buf.NewPacketReader(conn)
+	}
+
+	var writer buf.Writer
+	if network == net.Network_TCP {
+		writer = buf.NewWriter(conn)
+	} else {
+		// if we are in TPROXY mode, use linux's udp forging functionality
+		if !destinationOverridden {
+			writer = &buf.SequentialWriter{Writer: conn}
+		} else {
+			back := conn.RemoteAddr().(*net.UDPAddr)
+			if !dest.Address.Family().IsIP() {
+				if len(back.IP) == 4 {
+					dest.Address = net.AnyIP
+				} else {
+					dest.Address = net.AnyIPv6
+				}
+			}
+			addr := &net.UDPAddr{
+				IP:   dest.Address.IP(),
+				Port: int(dest.Port),
+			}
+			var mark int
+			if d.sockopt != nil {
+				mark = int(d.sockopt.Mark)
+			}
+			pConn, err := fakeUDPFactory(addr, mark)
+			if err != nil {
+				return err
+			}
+			writer = NewPacketWriter(pConn, &dest, mark, back)
+			defer writer.(*PacketWriter).Close() // close fake UDP conns
+		}
+	}
+
+	if err := dispatcher.DispatchLink(ctx, dest, &transport.Link{
+		Reader: reader,
+		Writer: writer},
+	); err != nil {
+		return errors.New("failed to dispatch request").Base(err)
+	}
+	return nil // Unlike Dispatch(), DispatchLink() will not return until the outbound finishes Process()
+}
+
+func NewPacketWriter(conn net.PacketConn, d *net.Destination, mark int, back *net.UDPAddr) buf.Writer {
+	writer := &PacketWriter{
+		conn:   conn,
+		conns:  make(map[net.Destination]*packetWriterConnEntry),
+		mark:   mark,
+		back:   back,
+		origin: *d,
+	}
+	writer.seq++
+	writer.conns[*d] = &packetWriterConnEntry{
+		conn: conn,
+		last: writer.seq,
+	}
+	return writer
+}
+
+type packetWriterConnEntry struct {
+	conn net.PacketConn
+	last uint64
+}
+
+type PacketWriter struct {
+	conn   net.PacketConn
+	conns  map[net.Destination]*packetWriterConnEntry
+	mark   int
+	back   *net.UDPAddr
+	origin net.Destination
+	seq    uint64
+}
+
+func (w *PacketWriter) touch(entry *packetWriterConnEntry) {
+	w.seq++
+	entry.last = w.seq
+}
+
+func (w *PacketWriter) closeAndDelete(dest net.Destination, entry *packetWriterConnEntry) {
+	if entry != nil && entry.conn != nil {
+		entry.conn.Close()
+	}
+	delete(w.conns, dest)
+}
+
+func (w *PacketWriter) evictOne(excluded net.Destination) {
+	var (
+		candidateDest  net.Destination
+		candidateEntry *packetWriterConnEntry
+	)
+	for dest, entry := range w.conns {
+		if entry == nil || entry.conn == nil {
+			delete(w.conns, dest)
+			continue
+		}
+		if dest == excluded || dest == w.origin {
+			continue
+		}
+		if candidateEntry == nil || entry.last < candidateEntry.last {
+			candidateDest = dest
+			candidateEntry = entry
+		}
+	}
+	if candidateEntry != nil {
+		w.closeAndDelete(candidateDest, candidateEntry)
+	}
+}
+
+func (w *PacketWriter) ensureCapacity(excluded net.Destination) {
+	for len(w.conns) >= maxPacketWriterFakeUDPConns {
+		before := len(w.conns)
+		w.evictOne(excluded)
+		if len(w.conns) == before {
+			// Map contains only non-evictable entries.
+			return
+		}
+	}
+}
+
+func (w *PacketWriter) getOrCreateConn(dest net.Destination) (net.PacketConn, error) {
+	if entry, ok := w.conns[dest]; ok {
+		if entry != nil && entry.conn != nil {
+			w.touch(entry)
+			return entry.conn, nil
+		}
+		delete(w.conns, dest)
+	}
+
+	w.ensureCapacity(dest)
+	if len(w.conns) >= maxPacketWriterFakeUDPConns {
+		return nil, errors.New("too many UDP fake sockets")
+	}
+
+	conn, err := fakeUDPFactory(
+		&net.UDPAddr{
+			IP:   dest.Address.IP(),
+			Port: int(dest.Port),
+		},
+		w.mark,
+	)
+	if err != nil {
+		return nil, err
+	}
+	w.seq++
+	w.conns[dest] = &packetWriterConnEntry{
+		conn: conn,
+		last: w.seq,
+	}
+	return conn, nil
+}
+
+func (w *PacketWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
+	for {
+		mb2, b := buf.SplitFirst(mb)
+		mb = mb2
+		if b == nil {
+			break
+		}
+		var err error
+		if b.UDP != nil && b.UDP.Address.Family().IsIP() {
+			dest := *b.UDP
+			conn, err := w.getOrCreateConn(dest)
+			if err != nil {
+				errors.LogInfo(context.Background(), err.Error())
+				b.Release()
+				continue
+			}
+			_, err = conn.WriteTo(b.Bytes(), w.back)
+			if err != nil {
+				errors.LogInfo(context.Background(), err.Error())
+				if entry, ok := w.conns[dest]; ok {
+					w.closeAndDelete(dest, entry)
+				}
+			}
+			b.Release()
+		} else {
+			_, err = w.conn.WriteTo(b.Bytes(), w.back)
+			b.Release()
+			if err != nil {
+				buf.ReleaseMulti(mb)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (w *PacketWriter) Close() error {
+	for dest, entry := range w.conns {
+		if entry != nil && entry.conn != nil {
+			entry.conn.Close()
+		}
+		delete(w.conns, dest)
+	}
+	return nil
+}

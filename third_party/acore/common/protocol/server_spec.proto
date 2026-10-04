@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package acore.common.protocol;
+option csharp_namespace = "Acore.Common.Protocol";
+option go_package = "github.com/ImAubrey/acore/common/protocol";
+option java_package = "com.acore.common.protocol";
+option java_multiple_files = true;
+
+import "common/net/address.proto";
+import "common/protocol/user.proto";
+
+message ServerEndpoint {
+  acore.common.net.IPOrDomain address = 1;
+  uint32 port = 2;
+  acore.common.protocol.User user = 3;
+}

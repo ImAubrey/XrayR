@@ -8,17 +8,20 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/infra/conf"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/api/sspanel"
-	_ "github.com/XrayR-project/XrayR/cmd/distro/all"
-	"github.com/XrayR-project/XrayR/common/mylego"
-	. "github.com/XrayR-project/XrayR/service/controller"
+	"github.com/ImAubrey/acore-backend/api"
+	"github.com/ImAubrey/acore-backend/api/sspanel"
+	_ "github.com/ImAubrey/acore-backend/cmd/distro/all"
+	. "github.com/ImAubrey/acore-backend/service/controller"
 )
 
 func TestController(t *testing.T) {
+	if os.Getenv("ACORE_BACKEND_RUN_INTEGRATION_TESTS") != "1" {
+		t.Skip("requires a live panel API and signal-driven controller runtime")
+	}
+
 	serverConfig := &conf.Config{
 		Stats:     &conf.StatsConfig{},
 		LogConfig: &conf.LogConfig{LogLevel: "debug"},
@@ -47,12 +50,7 @@ func TestController(t *testing.T) {
 	if err = server.Start(); err != nil {
 		t.Errorf("Failed to start instance: %s", err)
 	}
-	certConfig := &mylego.CertConfig{
-		CertMode:   "http",
-		CertDomain: "test.ss.tk",
-		Provider:   "alidns",
-		Email:      "ss@ss.com",
-	}
+	certConfig := &CertConfig{CertMode: "none"}
 	controlerConfig := &Config{
 		UpdatePeriodic: 5,
 		CertConfig:     certConfig,

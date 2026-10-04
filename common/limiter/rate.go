@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/common/buf"
+	"github.com/ImAubrey/acore/common"
+	"github.com/ImAubrey/acore/common/buf"
 	"golang.org/x/time/rate"
 )
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"regexp"
 
-	"github.com/xtls/xray-core/infra/conf"
+	"github.com/ImAubrey/acore/infra/conf"
 )
 
 const (
@@ -37,9 +37,11 @@ type NodeStatus struct {
 }
 
 type NodeInfo struct {
+	APIHost             string
+	APIKey              string
 	AcceptProxyProtocol bool
 	Authority           string
-	NodeType            string // Must be V2ray, Trojan, and Shadowsocks
+	NodeType            string
 	NodeID              int
 	Port                uint32
 	SpeedLimit          uint64 // Bps
@@ -78,6 +80,7 @@ type NodeInfo struct {
 	Security            string
 	Key                 string
 	RejectUnknownSni    bool
+	HysteriaConfig      *conf.HysteriaConfig
 }
 
 type UserInfo struct {

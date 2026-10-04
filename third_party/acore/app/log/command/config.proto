@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package acore.app.log.command;
+option csharp_namespace = "Acore.App.Log.Command";
+option go_package = "github.com/ImAubrey/acore/app/log/command";
+option java_package = "com.acore.app.log.command";
+option java_multiple_files = true;
+
+message Config {}
+
+message RestartLoggerRequest {}
+
+message RestartLoggerResponse {}
+
+service LoggerService {
+  rpc RestartLogger(RestartLoggerRequest) returns (RestartLoggerResponse) {}
+}

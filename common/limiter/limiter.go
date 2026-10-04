@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	xerrors "github.com/ImAubrey/acore/common/errors"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
@@ -18,7 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 type UserInfo struct {
@@ -218,7 +219,7 @@ func (l *Limiter) GetUserBucket(tag string, email string, ip string) (limiter *r
 			return nil, false, false
 		}
 	} else {
-		newError("Get Inbound Limiter information failed").AtDebug().WriteToLog()
+		xerrors.LogDebug(context.Background(), "Get Inbound Limiter information failed")
 		return nil, false, false
 	}
 }
@@ -238,7 +239,7 @@ func globalLimit(inboundInfo *InboundInfo, email string, uid int, ip string, dev
 			// If the email is a new device
 			go pushIP(inboundInfo, uniqueKey, &map[string]int{ip: uid})
 		} else {
-			newError("cache service").Base(err).AtError().WriteToLog()
+			xerrors.LogErrorInner(context.Background(), err, "cache service")
 		}
 		return false
 	}
@@ -264,7 +265,7 @@ func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string]int) {
 	defer cancel()
 
 	if err := inboundInfo.GlobalLimit.globalOnlineIP.Set(ctx, uniqueKey, ipMap); err != nil {
-		newError("cache service").Base(err).AtError().WriteToLog()
+		xerrors.LogErrorInner(context.Background(), err, "cache service")
 	}
 }
 

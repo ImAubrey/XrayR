@@ -11,8 +11,10 @@ gen
 *.out
 go.work
 main
-XrayR
-XrayR*
+build/
+build_assets/
+acore-backend
+acore-backend*
 access.log
 error.log
 .lego

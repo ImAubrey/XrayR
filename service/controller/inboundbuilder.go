@@ -7,23 +7,29 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/ImAubrey/acore/common/net"
+	"github.com/ImAubrey/acore/core"
+	"github.com/ImAubrey/acore/infra/conf"
+	"github.com/go-resty/resty/v2"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/XrayR-project/XrayR/api"
-	"github.com/XrayR-project/XrayR/common/mylego"
+	"github.com/ImAubrey/acore-backend/api"
 )
 
 // InboundBuilder build Inbound config for different protocol
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
 	inboundDetourConfig := &conf.InboundDetourConfig{}
+	nodeType := api.CanonicalNodeType(nodeInfo.NodeType, nodeInfo.EnableVless)
+
 	// Build Listen IP address
-	if nodeInfo.NodeType == "Shadowsocks-Plugin" {
+	if nodeType == "shadowsocks-plugin" {
 		// Shdowsocks listen in 127.0.0.1 for safety
 		inboundDetourConfig.ListenOn = &conf.Address{Address: net.ParseAddress("127.0.0.1")}
 	} else if config.ListenIP != "" {
@@ -56,9 +62,9 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	var proxySetting any
 	// Build Protocol and Protocol setting
-	switch nodeInfo.NodeType {
-	case "V2ray", "Vmess", "Vless":
-		if nodeInfo.EnableVless || (nodeInfo.NodeType == "Vless" && nodeInfo.NodeType != "Vmess") {
+	switch nodeType {
+	case "v2ray", "vmess", "vless":
+		if api.IsVlessNodeType(nodeInfo.NodeType, nodeInfo.EnableVless) {
 			protocol = "vless"
 			// Enable fallback
 			if config.EnableFallback {
@@ -80,7 +86,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			protocol = "vmess"
 			proxySetting = &conf.VMessInboundConfig{}
 		}
-	case "Trojan":
+	case "trojan":
 		protocol = "trojan"
 		// Enable fallback
 		if config.EnableFallback {
@@ -95,7 +101,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		} else {
 			proxySetting = &conf.TrojanServerConfig{}
 		}
-	case "Shadowsocks", "Shadowsocks-Plugin":
+	case "shadowsocks", "shadowsocks-plugin":
 		protocol = "shadowsocks"
 		cipher := strings.ToLower(nodeInfo.CypherMethod)
 
@@ -133,8 +139,11 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			Host:        "v1.mux.cool",
 			NetworkList: []string{"tcp", "udp"},
 		}
+	case api.NodeTypeHY2:
+		protocol = "hysteria"
+		proxySetting = &conf.HysteriaServerConfig{Version: 2}
 	default:
-		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks, and Shadowsocks-Plugin", nodeInfo.NodeType)
+		return nil, fmt.Errorf("unsupported node type: %s", nodeInfo.NodeType)
 	}
 
 	setting, err := json.Marshal(proxySetting)
@@ -169,28 +178,19 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			Headers:             headers,
 		}
 		streamSetting.WSSettings = wsSettings
-	case "http":
-		hosts := conf.StringList{nodeInfo.Host}
-		httpSettings := &conf.HTTPConfig{
-			Host:    &hosts,
+	case "splithttp":
+		splitHTTPSettings := &conf.SplitHTTPConfig{
+			Host:    nodeInfo.Host,
 			Path:    nodeInfo.Path,
-			Method:  nodeInfo.Method,
-			Headers: nodeInfo.HttpHeaders,
+			Headers: nodeInfo.Headers,
 		}
-		streamSetting.HTTPSettings = httpSettings
+		streamSetting.SplitHTTPSettings = splitHTTPSettings
 	case "grpc":
 		grpcSettings := &conf.GRPCConfig{
 			ServiceName: nodeInfo.ServiceName,
 			Authority:   nodeInfo.Authority,
 		}
-		streamSetting.GRPCConfig = grpcSettings
-	case "quic":
-		quicSettings := &conf.QUICConfig{
-			Header:   nodeInfo.Header,
-			Security: nodeInfo.Security,
-			Key:      nodeInfo.Key,
-		}
-		streamSetting.QUICSettings = quicSettings
+		streamSetting.GRPCSettings = grpcSettings
 	case "httpupgrade":
 		httpupgradeSettings := &conf.HttpUpgradeConfig{
 			Headers:             nodeInfo.Headers,
@@ -199,6 +199,12 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
 		}
 		streamSetting.HTTPUPGRADESettings = httpupgradeSettings
+	case "hysteria":
+		if nodeInfo.HysteriaConfig != nil {
+			streamSetting.HysteriaSettings = nodeInfo.HysteriaConfig
+		} else {
+			streamSetting.HysteriaSettings = &conf.HysteriaConfig{Version: 2}
+		}
 	}
 	streamSetting.Network = &transportProtocol
 
@@ -239,14 +245,32 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		}
 	}
 
-	if !isREALITY && nodeInfo.EnableTLS && config.CertConfig.CertMode != "none" {
+	certConfig := config.CertConfig
+	if certConfig == nil {
+		certConfig = &CertConfig{CertMode: "none"}
+	}
+	certMode := normalizeCertMode(certConfig)
+
+	if err := validateDirectVision(nodeInfo, networkType, isREALITY, certMode); err != nil {
+		return nil, err
+	}
+	if networkType == "hysteria" && (!nodeInfo.EnableTLS || certMode == "none") {
+		return nil, fmt.Errorf("hysteria2 requires TLS certificate config; got enable_tls=%v certmode=%s", nodeInfo.EnableTLS, certMode)
+	}
+
+	if !isREALITY && nodeInfo.EnableTLS && certMode != "none" {
 		streamSetting.Security = "tls"
-		certFile, keyFile, err := getCertFile(config.CertConfig)
+		certFile, keyFile, err := getCertFile(certConfig, nodeInfo)
 		if err != nil {
 			return nil, err
 		}
 		tlsSettings := &conf.TLSConfig{
-			RejectUnknownSNI: config.CertConfig.RejectUnknownSni,
+			RejectUnknownSNI: certConfig.RejectUnknownSni,
+		}
+		if networkType == "hysteria" {
+			tlsSettings.ALPN = &conf.StringList{"h3"}
+			tlsSettings.MinVersion = "1.3"
+			tlsSettings.MaxVersion = "1.3"
 		}
 		tlsSettings.Certs = append(tlsSettings.Certs, &conf.TLSCertConfig{CertFile: certFile, KeyFile: keyFile, OcspStapling: 3600})
 		streamSetting.TLSSettings = tlsSettings
@@ -264,36 +288,137 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	return inboundDetourConfig.Build()
 }
 
-func getCertFile(certConfig *mylego.CertConfig) (certFile string, keyFile string, err error) {
-	switch certConfig.CertMode {
+func getCertFile(certConfig *CertConfig, nodeInfo *api.NodeInfo) (certFile string, keyFile string, err error) {
+	switch normalizeCertMode(certConfig) {
 	case "file":
 		if certConfig.CertFile == "" || certConfig.KeyFile == "" {
 			return "", "", fmt.Errorf("cert file path or key file path not exist")
 		}
 		return certConfig.CertFile, certConfig.KeyFile, nil
-	case "dns":
-		lego, err := mylego.New(certConfig)
-		if err != nil {
-			return "", "", err
-		}
-		certPath, keyPath, err := lego.DNSCert()
-		if err != nil {
-			return "", "", err
-		}
-		return certPath, keyPath, err
-	case "http", "tls":
-		lego, err := mylego.New(certConfig)
-		if err != nil {
-			return "", "", err
-		}
-		certPath, keyPath, err := lego.HTTPCert()
-		if err != nil {
-			return "", "", err
-		}
-		return certPath, keyPath, err
+	case "api":
+		return getAPICertFile(certConfig, nodeInfo)
 	default:
 		return "", "", fmt.Errorf("unsupported certmode: %s", certConfig.CertMode)
 	}
+}
+
+func normalizeCertMode(certConfig *CertConfig) string {
+	if certConfig == nil {
+		return "none"
+	}
+	mode := strings.ToLower(strings.TrimSpace(certConfig.CertMode))
+	if mode == "" {
+		return "none"
+	}
+	return mode
+}
+
+func validateDirectVision(nodeInfo *api.NodeInfo, networkType string, isREALITY bool, certMode string) error {
+	if !isVLESSVision(nodeInfo) {
+		return nil
+	}
+	if networkType != "tcp" {
+		return fmt.Errorf("vless vision requires direct tcp transport, got %s", networkType)
+	}
+	if len(nodeInfo.Header) > 0 {
+		return fmt.Errorf("vless vision requires direct tcp without tcp header")
+	}
+	if !isREALITY && (!nodeInfo.EnableTLS || certMode == "none") {
+		return fmt.Errorf("vless vision requires TLS or REALITY; got enable_tls=%v certmode=%s", nodeInfo.EnableTLS, certMode)
+	}
+	return nil
+}
+
+func isVLESSVision(nodeInfo *api.NodeInfo) bool {
+	if nodeInfo == nil {
+		return false
+	}
+	return api.IsVlessNodeType(nodeInfo.NodeType, nodeInfo.EnableVless) &&
+		strings.EqualFold(strings.TrimSpace(nodeInfo.VlessFlow), "xtls-rprx-vision")
+}
+
+type apiCertResponse struct {
+	Cert string `json:"cert"`
+	Key  string `json:"key"`
+	Name string `json:"name"`
+}
+
+func getAPICertFile(certConfig *CertConfig, nodeInfo *api.NodeInfo) (certFile string, keyFile string, err error) {
+	if nodeInfo.APIHost == "" || nodeInfo.APIKey == "" {
+		return "", "", fmt.Errorf("api cert mode requires panel api host and key")
+	}
+
+	result := new(apiCertResponse)
+	res, err := resty.New().
+		SetTimeout(30*time.Second).
+		R().
+		SetHeader("User-Agent", "go-resty/2.7.0 (https://github.com/go-resty/resty)").
+		SetQueryParams(map[string]string{
+			"node_id":   strconv.Itoa(nodeInfo.NodeID),
+			"node_type": api.CanonicalNodeType(nodeInfo.NodeType, nodeInfo.EnableVless),
+			"token":     nodeInfo.APIKey,
+		}).
+		SetResult(result).
+		ForceContentType("application/json").
+		Get(strings.TrimRight(nodeInfo.APIHost, "/") + "/api/v1/server/UniProxy/cert")
+	if err != nil {
+		return "", "", fmt.Errorf("request api cert failed: %w", err)
+	}
+	if res.StatusCode() > 399 {
+		return "", "", fmt.Errorf("request api cert failed: status %d", res.StatusCode())
+	}
+	if result.Cert == "" || result.Key == "" {
+		return "", "", fmt.Errorf("api cert response missing cert or key")
+	}
+
+	certFile, keyFile = certConfig.CertFile, certConfig.KeyFile
+	if certFile == "" || keyFile == "" {
+		name := sanitizeAPICertName(result.Name)
+		if name == "" {
+			name = fmt.Sprintf("node-%d-%s", nodeInfo.NodeID, api.CanonicalNodeType(nodeInfo.NodeType, nodeInfo.EnableVless))
+		}
+		certFile = filepath.Join("cert", name+".cert")
+		keyFile = filepath.Join("cert", name+".key")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(certFile), 0o700); err != nil {
+		return "", "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(keyFile), 0o700); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(certFile, []byte(ensureTrailingNewline(result.Cert)), 0o600); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(keyFile, []byte(ensureTrailingNewline(result.Key)), 0o600); err != nil {
+		return "", "", err
+	}
+
+	return certFile, keyFile, nil
+}
+
+func sanitizeAPICertName(name string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r
+		case r >= '0' && r <= '9':
+			return r
+		case r == '.', r == '-', r == '_':
+			return r
+		default:
+			return '_'
+		}
+	}, name)
+}
+
+func ensureTrailingNewline(value string) string {
+	if strings.HasSuffix(value, "\n") {
+		return value
+	}
+	return value + "\n"
 }
 
 func buildVlessFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.VLessInboundFallback, error) {
